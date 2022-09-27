@@ -1,17 +1,14 @@
 classDiagram
     class PluginManager {
         <<interface>>
-        registerExtensionPoint(extensionPointId)
-        getRegisteredExtensionPoints() Iterable
-        registerPluginsByExtensionPoint(extensionPointId)
-        getRegisteredPlugins() Plugin[]
-        getExtensions(extensionPointId) ExtensionInfo[]
-        instantiate(extensionHandle, hostData: any) Extension
+        registerExtensions(extensionPoint)
+        getRegisteredExtensions(extensionPoint) Set<ExtensionInfo>
+        instantiate(extensionHandle, hostData: Map<string, string>) Extension
     }
 
     class ExtensionInfo {
         <<interface>>
         extensionHandle
-        extensionData
-        pluginData
+        extensionData: Map<string, string>
+        pluginData: Map<string, string>
     }
