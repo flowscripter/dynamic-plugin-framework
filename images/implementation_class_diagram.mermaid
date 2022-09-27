@@ -3,7 +3,7 @@ classDiagram
         <<interface>>
     }
 
-    class BasePluginManager {
+    class DefaultPluginManager {
     }
 
     class ExtensionPointRegistry {
@@ -14,18 +14,11 @@ classDiagram
         <<interface>>
     }
 
-    class PluginRegistry {
-        <<interface>>
-    }
-
     class PluginRepository {
         <<interface>>
     }
 
-    class AbstractPluginRepository {
-    }
-
-    class InMemoryPluginRegistry {
+    class UrlListPluginRepository {
     }
 
     class InMemoryExtensionRegistry {
@@ -34,12 +27,10 @@ classDiagram
     class InMemoryExtensionPointRegistry {
     }
 
-    PluginManager <|.. BasePluginManager
+    PluginManager <|.. DefaultPluginManager
     ExtensionPointRegistry <|.. InMemoryExtensionPointRegistry
     ExtensionRegistry <|.. InMemoryExtensionRegistry
-    PluginRegistry <|.. InMemoryPluginRegistry
-    BasePluginManager --> ExtensionPointRegistry
-    BasePluginManager --> ExtensionRegistry
-    BasePluginManager --> PluginRegistry
-    BasePluginManager --> "1..*" PluginRepository
-    PluginRepository <|.. AbstractPluginRepository
+    DefaultPluginManager --> ExtensionPointRegistry
+    DefaultPluginManager --> ExtensionRegistry
+    DefaultPluginManager --> "1..*" PluginRepository
+    PluginRepository <|.. UrlListPluginRepository

@@ -1,15 +1,16 @@
 %%{init: { "sequence": { "mirrorActors":false }}}%%
 sequenceDiagram
-    HostApplication->>PluginManager:getExtensions(EXTENSION_POINT_1_ID)
+    HostApplication->>PluginManager:getRegisteredExtensions(EXTENSION_POINT_1)
     activate PluginManager
     PluginManager->>PluginManager:filterExtensions
     PluginManager->>HostApplication:ExtensionInfo[]
     deactivate PluginManager
     HostApplication->>HostApplication:select Extension1
-    HostApplication->>PluginManager:instantiate(Extension1Handle)
+    HostApplication->>PluginManager:instantiate(extension1Handle)
     activate PluginManager
-    PluginManager->>Plugin1:<<dynamic import>>
-    Plugin1-->>PluginManager:Extension1Factory
+    PluginManager->>PluginRepository1:getExtensionDescriptorFromExtensionEntry(extensionEntry)
+    PluginRepository1->>Plugin1:<<dynamic import>>
+    Plugin1-->>PluginManager:ExtensionDescriptor
     PluginManager->>Extension1Factory:create()
     activate Extension1Factory
     Extension1Factory->>Extension1:<<new>>
