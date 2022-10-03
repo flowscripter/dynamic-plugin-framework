@@ -44,24 +44,132 @@ framework. The key concepts are:
 
 The following high level class diagram illustrates these relationships:
 
-![High Level Class Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/high_level_class_diagram.png "High Level Class Diagram")
+```mermaid
+classDiagram
+    direction LR
+
+    class HostApplication {
+    }
+
+    class ExtensionPoint1 {
+        <<interface>>
+        EXTENSION_POINT_1
+    }
+
+    class Plugin {
+        <<interface>>
+    }
+
+    class PluginManager {
+        <<interface>>
+    }
+
+    class PluginRepository {
+        <<interface>>
+    }
+
+    class ExtensionDescriptor {
+        <<interface>>
+    }
+
+    class ExtensionFactory {
+        <<interface>>
+    }
+
+    class Plugin1 {
+    }
+
+    class Extension1Descriptor {
+    }
+
+    class Extension1Factory {
+    }
+
+    class Extension1 {
+    }
+
+    PluginRepository --> "0..*" Plugin
+    PluginManager -->  "1..*" PluginRepository: scans
+    Plugin --> "1..*" ExtensionDescriptor
+    ExtensionDescriptor --> ExtensionFactory
+    PluginManager --> "0..*" Plugin : registers
+    PluginManager ..> ExtensionFactory : invokes
+    Extension1Factory ..|> ExtensionFactory
+    Extension1Descriptor ..|> ExtensionDescriptor
+    Plugin1 ..|> Plugin
+    Extension1 ..|> ExtensionPoint1
+    Plugin1 --> Extension1Descriptor
+    Extension1Descriptor --> Extension1Factory
+    Extension1Factory ..> Extension1 : creates
+    Extension1Descriptor ..> ExtensionPoint1: declares
+    HostApplication --> PluginManager
+    HostApplication ..> ExtensionPoint1: defines
+```
 
 The following sequence diagram illustrates the key steps for a `HostApplication`
 to use a `PluginManager` for discovery and registration of `Plugin` instances:
 
-![Registration Sequence Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/registration_sequence_diagram.png "Registration Sequence Diagram")
+```mermaid
+%%{init: { "sequence": { "mirrorActors":false }}}%%
+sequenceDiagram
+    HostApplication->>PluginManager:<<static import>>
+    Note over PluginRepository1,PluginRepository2: May use an index or scan plugins directly
+    HostApplication->>PluginManager:registerExtensions(EXTENSION_POINT_1)
+    activate PluginManager
+    PluginManager->>PluginRepository1:scanForExtensions(EXTENSION_POINT_1)
+    activate PluginRepository1
+    PluginRepository1-->>PluginManager:ExtensionEntry[]
+    deactivate PluginRepository1
+    PluginManager->>PluginRepository2:scanForExtensions(EXTENSION_POINT_1)
+    activate PluginRepository2
+    PluginRepository2-->>PluginManager:ExtensionEntry[]
+    deactivate PluginRepository2
+    PluginManager-->>HostApplication:ExtensionInfo[]
+    deactivate PluginManager
+```
 
 Once registration has been performed, the `HostApplication` may query the
 `PluginManager` for `Extensions` of known `ExtensionPoints` and then instantiate
 them:
 
-![Query and Instantiation Sequence Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/query_and_instantiation_sequence_diagram.png "Query and Instantiation Sequence Diagram")
+```mermaid
+%%{init: { "sequence": { "mirrorActors":false, diagramMarginY: 0 }}}%%
+sequenceDiagram
+    HostApplication->>PluginManager:getRegisteredExtensions(EXTENSION_POINT_1)
+    activate PluginManager
+    PluginManager->>PluginManager:filterExtensions
+    PluginManager->>HostApplication:ExtensionInfo[]
+    deactivate PluginManager
+    HostApplication->>HostApplication:select Extension1
+    HostApplication->>PluginManager:instantiate(extension1Handle)
+    activate PluginManager
+    PluginManager->>PluginRepository1:getExtensionDescriptorFromExtensionEntry(extensionEntry)
+    PluginRepository1->>Plugin1:<<dynamic import>>
+    Plugin1-->>PluginManager:ExtensionDescriptor
+    PluginManager->>Extension1Factory:create()
+    activate Extension1Factory
+    Extension1Factory->>Extension1:<<new>>
+    Extension1Factory-->>PluginManager:Extension1
+    deactivate Extension1Factory
+    PluginManager-->>HostApplication:Extension1
+    deactivate PluginManager
+    HostApplication->>Extension1:extensionPoint1Method
+    activate Extension1
+    deactivate Extension1
+```
 
 As `ExtensionPoints` are simply Typescript classes, for the purposes of testing
 or validation, it is possible to bypass the framework altogether and import an
 `Extension` and use it directly:
 
-![Direct Instantiation Sequence Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/direct_instantiation_sequence_diagram.png "Direct Instantiation Sequence Diagram")
+```mermaid
+%%{init: { "sequence": { "mirrorActors":false }}}%%
+sequenceDiagram
+    HostApplication->>Extension1:<<static import>>
+    HostApplication->>Extension1:extensionPoint1Method
+    activate Extension1
+    deactivate Extension1
+```
 
 ## Examples
 
@@ -75,11 +183,46 @@ terminal and a browser:
 
 The following diagram provides an overview of the `Plugin` API:
 
-![Plugin API Class Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/plugin_api_class_diagram.png "Plugin API Class Diagram")
+```mermaid
+classDiagram
+    class Plugin {
+        <<interface>>
+        pluginData: any
+    }
+
+    class ExtensionDescriptor {
+        <<interface>>
+        extensionPoint
+        extensionData: any
+    }
+
+    class ExtensionFactory {
+        <<interface>>
+        create(hostData: any) Extension
+    }
+
+    Plugin --> "1..*" ExtensionDescriptor: extensionDescriptors
+    ExtensionDescriptor --> ExtensionFactory: factory
+```
 
 The following diagram provides an overview of the `PluginManager` API:
 
-![Plugin Manager API Class Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/plugin_manager_api_class_diagram.png "Plugin Manager API Class Diagram")
+```mermaid
+classDiagram
+    class PluginManager {
+        <<interface>>
+        registerExtensions(extensionPoint)
+        getRegisteredExtensions(extensionPoint) Set<ExtensionInfo>
+        instantiate(extensionHandle, hostData: Map<string, string>) Extension
+    }
+
+    class ExtensionInfo {
+        <<interface>>
+        extensionHandle
+        extensionData: Map<string, string>
+        pluginData: Map<string, string>
+    }
+```
 
 API docs for the library:
 
@@ -93,7 +236,44 @@ Lint: `deno fmt`
 
 The following diagram provides an overview of the main internal classes:
 
-![Implementation Class Diagram](https://raw.githubusercontent.com/flowscripter/deno-dynamic-plugin-framework/main/images/implementation_class_diagram.png "Implementation Class Diagram")
+```mermaid
+classDiagram
+    class PluginManager {
+        <<interface>>
+    }
+
+    class DefaultPluginManager {
+    }
+
+    class ExtensionPointRegistry {
+        <<interface>>
+    }
+
+    class ExtensionRegistry {
+        <<interface>>
+    }
+
+    class PluginRepository {
+        <<interface>>
+    }
+
+    class UrlListPluginRepository {
+    }
+
+    class InMemoryExtensionRegistry {
+    }
+
+    class InMemoryExtensionPointRegistry {
+    }
+
+    PluginManager <|.. DefaultPluginManager
+    ExtensionPointRegistry <|.. InMemoryExtensionPointRegistry
+    ExtensionRegistry <|.. InMemoryExtensionRegistry
+    DefaultPluginManager --> ExtensionPointRegistry
+    DefaultPluginManager --> ExtensionRegistry
+    DefaultPluginManager --> "1..*" PluginRepository
+    PluginRepository <|.. UrlListPluginRepository
+```
 
 ## License
 
