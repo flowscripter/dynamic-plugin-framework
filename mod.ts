@@ -7,5 +7,5 @@ export type { default as PluginRepository } from "./src/plugin_manager/plugin_re
 export type { default as ExtensionEntry } from "./src/plugin_manager/plugin_repository/ExtensionEntry.ts";
 export type { default as ExtensionRegistry } from "./src/plugin_manager/registry/ExtensionRegistry.ts";
 export type { default as ExtensionPointRegistry } from "./src/plugin_manager/registry/ExtensionPointRegistry.ts";
-export { default as DefaultPluginManager}  from "./src/plugin_manager/DefaultPluginManager.ts";
+export { default as DefaultPluginManager } from "./src/plugin_manager/DefaultPluginManager.ts";
 export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_repository/UrlListPluginRepository.ts";
