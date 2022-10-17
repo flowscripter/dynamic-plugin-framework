@@ -35,8 +35,8 @@ framework. The key concepts are:
 - The `HostApplication` can register one or more `ExtensionPoint` identifiers
   that the `PluginManager` should be aware of.
 - The `PluginManager` scans one or more `PluginRepository` implementations to
-  find and register `Plugin` instances for any `ExtensionPoint` identifiers it
-  is aware of.
+  find and register `Plugin` objects for any `ExtensionPoint` identifiers it is
+  aware of.
 - The `HostApplication` uses the `PluginManager` to query for and select an
   `Extension` for a desired `ExtensionPoint` identifier.
 - The `PluginManager` uses the associated `ExtensionFactory` to instantiate the
@@ -158,7 +158,7 @@ sequenceDiagram
     deactivate Extension1
 ```
 
-As `ExtensionPoints` are simply Typescript classes, for the purposes of testing
+As `ExtensionPoints` are simply Typescript objects, for the purposes of testing
 or validation, it is possible to bypass the framework altogether and import an
 `Extension` and use it directly:
 
@@ -176,8 +176,9 @@ sequenceDiagram
 The following example projects are available which support execution in both a
 terminal and a browser:
 
-- [Host Application](https://github.com/flowscripter/example-host-application)
 - [Plugin](https://github.com/flowscripter/example-plugin)
+- [Host Application](https://github.com/flowscripter/example-host-application)
+- [Host Webapp](https://github.com/flowscripter/example-host-webapp)
 
 ## API
 

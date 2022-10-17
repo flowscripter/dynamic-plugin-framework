@@ -10,11 +10,11 @@ export default class UrlPluginSource {
   private readonly pluginsByUrl: Map<URL, Plugin> = new Map();
 
   /**
-   * Attempt to load a {@link Plugin} instance from the specified URL.
+   * Attempt to load a {@link Plugin} object from the specified URL.
    *
    * @param url the URL to load from
    *
-   * @returns a {@link Plugin} instance if successful otherwise undefined
+   * @returns a {@link Plugin} object if successful otherwise undefined
    */
   public async loadPlugin(url: URL): Promise<Plugin | undefined> {
     let plugin = this.pluginsByUrl.get(url);
@@ -23,9 +23,9 @@ export default class UrlPluginSource {
       const pluginLoadResult = await loadPlugin(url.toString());
       if (
         pluginLoadResult.isValidPlugin &&
-        (pluginLoadResult.instance !== undefined)
+        (pluginLoadResult.plugin !== undefined)
       ) {
-        plugin = pluginLoadResult.instance;
+        plugin = pluginLoadResult.plugin;
         this.pluginsByUrl.set(url, plugin);
       }
     }

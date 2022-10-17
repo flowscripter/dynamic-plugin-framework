@@ -1,2 +1,1 @@
-export default class InvalidPlugin1 {
-}
+export default {};

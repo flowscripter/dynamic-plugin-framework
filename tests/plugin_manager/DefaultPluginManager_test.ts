@@ -73,14 +73,17 @@ Deno.test("Instantiating an extension works", async () => {
 
   await defaultPluginManager.registerExtensions(EXTENSION_POINT_1);
 
-  const extensions = await defaultPluginManager.getRegisteredExtensions(
+  const extensionInfos = await defaultPluginManager.getRegisteredExtensions(
     EXTENSION_POINT_1,
   );
 
-  const desiredExtension = extensions[0];
+  const extensionInfo = extensionInfos[0];
+
+  assertEquals(extensionInfo.pluginData?.get("foo"), "bar");
+  assertEquals(extensionInfo.extensionData?.get("foo"), "bar");
 
   const instance = await defaultPluginManager.instantiate(
-    desiredExtension.extensionHandle,
+    extensionInfo.extensionHandle,
   ) as ExtensionPoint1;
 
   assertEquals(instance.sayHello(), "hello");
