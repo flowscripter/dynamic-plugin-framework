@@ -9,27 +9,7 @@ Deno.test("Rejects invalid URL", async () => {
 });
 
 Deno.test("Rejects invalid modules", async () => {
-  let pluginLoadResult = await loadPlugin(
-    "../plugin_repository/ExtensionEntry.ts",
-  );
-
-  assertFalse(pluginLoadResult.isValidPlugin);
-  assertEquals(pluginLoadResult.error?.name, "Error");
-  assertEquals(
-    pluginLoadResult.error?.message,
-    "Default export of module ../plugin_repository/ExtensionEntry.ts is not a Plugin constructor",
-  );
-
-  pluginLoadResult = await loadPlugin("./PluginLoader.ts");
-
-  assertFalse(pluginLoadResult.isValidPlugin);
-  assertEquals(pluginLoadResult.error?.name, "TypeError");
-  assertEquals(
-    pluginLoadResult.error?.message,
-    "PotentialPlugin is not a constructor",
-  );
-
-  pluginLoadResult = await loadPlugin(
+  const pluginLoadResult = await loadPlugin(
     "../plugin_repository/UrlListPluginRepository.ts",
   );
 
@@ -37,7 +17,7 @@ Deno.test("Rejects invalid modules", async () => {
   assertEquals(pluginLoadResult.error?.name, "Error");
   assertEquals(
     pluginLoadResult.error?.message,
-    "Undefined or empty set of URLs provided",
+    "Plugin from ../plugin_repository/UrlListPluginRepository.ts does not provide an extensionDescriptors array",
   );
 });
 
@@ -105,7 +85,16 @@ Deno.test("Returns valid plugin", async () => {
 
   assert(pluginLoadResult.isValidPlugin);
   assertFalse(pluginLoadResult.error);
-  assertEquals(pluginLoadResult.instance?.extensionDescriptors.length, 1);
 
-  await pluginLoadResult.instance?.extensionDescriptors[0].factory.create();
+  const plugin = pluginLoadResult.plugin;
+
+  assertEquals(plugin?.pluginData?.get("foo"), "bar");
+
+  assertEquals(plugin?.extensionDescriptors.length, 1);
+
+  const extensionDescriptor = plugin?.extensionDescriptors[0];
+
+  assertEquals(extensionDescriptor?.extensionData?.get("foo"), "bar");
+
+  await extensionDescriptor?.factory.create();
 });

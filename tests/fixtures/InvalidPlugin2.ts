@@ -1,5 +1,5 @@
-export default class InvalidPlugin2 {
-  public extensionDescriptors = [{
+export default {
+  extensionDescriptors: [{
     extensionData: "foo",
-  }];
-}
+  }],
+};

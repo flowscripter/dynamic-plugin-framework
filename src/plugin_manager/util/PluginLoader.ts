@@ -1,11 +1,6 @@
 import Plugin from "../../api/plugin/Plugin.ts";
 
 /**
- * Type alias for a Plugin Constructor
- */
-type PluginConstructorType = new () => Plugin;
-
-/**
  * Result of a {@link loadPlugin} invocation.
  */
 export interface PluginLoadResult {
@@ -15,28 +10,14 @@ export interface PluginLoadResult {
   isValidPlugin: boolean;
 
   /**
-   * Populated with the instantiated {@link Plugin} instance if {@link PluginLoadResult.isValidPlugin} is `true`
+   * Populated with the {@link Plugin} object if {@link PluginLoadResult.isValidPlugin} is `true`
    */
-  instance: Plugin | undefined;
+  plugin: Plugin | undefined;
 
   /**
    * Populated if {@link PluginLoadResult.isValidPlugin} is `false`
    */
   error?: Error;
-}
-
-function isPluginConstructor(test: unknown): test is PluginConstructorType {
-  // https://stackoverflow.com/questions/39334278/check-if-object-is-a-constructor-isconstructor
-  try {
-    new Proxy(test as Plugin, {
-      construct() {
-        return {};
-      },
-    });
-    return true;
-  } catch (_err) {
-    return false;
-  }
 }
 
 /**
@@ -49,7 +30,7 @@ export default async function loadPlugin(
 ): Promise<Readonly<PluginLoadResult>> {
   const result: PluginLoadResult = {
     isValidPlugin: false,
-    instance: undefined,
+    plugin: undefined,
     error: undefined,
   };
 
@@ -62,27 +43,10 @@ export default async function loadPlugin(
     return result;
   }
 
-  const PotentialPlugin = module.default;
-
-  // check if default export looks like a Plugin Constructor
-  if (!isPluginConstructor(PotentialPlugin)) {
-    result.error = new Error(
-      `Default export of module ${url} is not a Plugin constructor`,
-    );
-    return result;
-  }
-
-  // attempt to instantiate assumed Plugin
-  let potentialPluginInstance: Plugin;
-  try {
-    potentialPluginInstance = new PotentialPlugin();
-  } catch (err) {
-    result.error = err;
-    return result;
-  }
+  const potentialPlugin = module.default;
 
   // check the assumed Plugin has an array of extension descriptors
-  if (!Array.isArray(potentialPluginInstance.extensionDescriptors)) {
+  if (!Array.isArray(potentialPlugin.extensionDescriptors)) {
     result.error = new Error(
       `Plugin from ${url} does not provide an extensionDescriptors array`,
     );
@@ -93,7 +57,7 @@ export default async function loadPlugin(
   result.isValidPlugin = true;
 
   for (
-    const potentialExtensionDescriptor of potentialPluginInstance
+    const potentialExtensionDescriptor of potentialPlugin
       .extensionDescriptors
   ) {
     // check for valid {@link ExtensionDescriptor.extensionPoint}
@@ -123,6 +87,6 @@ export default async function loadPlugin(
       return result;
     }
   }
-  result.instance = potentialPluginInstance;
+  result.plugin = potentialPlugin;
   return result;
 }
