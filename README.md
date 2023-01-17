@@ -10,8 +10,6 @@
 > Dynamic plugin framework for Deno based on Javascript Modules and import()
 > function.
 
-// TODO: split out API for plugin developers
-
 ## Overview
 
 This project provides a framework for defining plugins which can be dynamically
@@ -180,6 +178,7 @@ terminal and a browser:
 
 - [Plugin](https://github.com/flowscripter/example-plugin)
 - [Host Application](https://github.com/flowscripter/example-host-application)
+- [Host Webapp](https://github.com/flowscripter/example-host-webapp)
 
 ## API
 
