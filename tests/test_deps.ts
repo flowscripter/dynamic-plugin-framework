@@ -1,2 +1,2 @@
-export * from "https://deno.land/std@0.179.0/testing/asserts.ts";
-export * as path from "https://deno.land/std@0.179.0/path/mod.ts";
+export * from "https://deno.land/std@0.180.0/testing/asserts.ts";
+export * as path from "https://deno.land/std@0.180.0/path/mod.ts";
