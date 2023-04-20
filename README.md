@@ -10,6 +10,9 @@
 > Dynamic plugin framework for Deno based on Javascript Modules and import()
 > function.
 
+[//]: # (TODO: Remove this when plugin indexing and discovery available.)
+**STILL IN DEVELOPMENT**
+
 ## Overview
 
 This project provides a framework for defining plugins which can be dynamically
