@@ -11,6 +11,7 @@
 > function.
 
 [//]: # (TODO: Remove this when plugin indexing and discovery available.)
+
 **STILL IN DEVELOPMENT**
 
 ## Overview
