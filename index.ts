@@ -1,0 +1,11 @@
+export type { default as ExtensionFactory } from "./src/api/plugin/ExtensionFactory.ts";
+export type { default as ExtensionDescriptor } from "./src/api/plugin/ExtensionDescriptor.ts";
+export type { default as Plugin } from "./src/api/plugin/Plugin.ts";
+export type { default as ExtensionInfo } from "./src/api/plugin_manager/ExtensionInfo.ts";
+export type { default as PluginManager } from "./src/api/plugin_manager/PluginManager.ts";
+export type { default as PluginRepository } from "./src/plugin_manager/plugin_repository/PluginRepository.ts";
+export type { default as ExtensionEntry } from "./src/plugin_manager/plugin_repository/ExtensionEntry.ts";
+export type { default as ExtensionRegistry } from "./src/plugin_manager/registry/ExtensionRegistry.ts";
+export type { default as ExtensionPointRegistry } from "./src/plugin_manager/registry/ExtensionPointRegistry.ts";
+export { default as DefaultPluginManager } from "./src/plugin_manager/DefaultPluginManager.ts";
+export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_repository/UrlListPluginRepository.ts";
