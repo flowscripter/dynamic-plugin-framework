@@ -4,10 +4,10 @@
     "": {
       "name": "@flowscripter/dynamic-plugin-framework",
       "devDependencies": {
-        "@types/bun": "^1.2.2",
+        "@types/bun": "latest",
       },
       "peerDependencies": {
-        "typescript": "^5.7.3",
+        "typescript": "latest",
       },
     },
   },
