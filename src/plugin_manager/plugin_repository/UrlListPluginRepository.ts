@@ -9,7 +9,6 @@ import UrlPluginSource from "./UrlPluginSource.ts";
  * When scanning for Plugins each provided URL will be used to attempt to load a Plugin and examine it.
  */
 export default class UrlListPluginRepository implements PluginRepository {
-  private readonly urls: Set<string>;
   private readonly pluginSource = new UrlPluginSource();
 
   /**
@@ -17,11 +16,10 @@ export default class UrlListPluginRepository implements PluginRepository {
    *
    * @throws *Error* if the URL set contains a non-valid URL.
    */
-  public constructor(urls: Set<string>) {
+  public constructor(private readonly urls: Set<string>) {
     if (!urls || (urls.size === 0)) {
       throw new Error(`Undefined or empty set of URLs provided`);
     }
-    this.urls = urls;
     this.urls.forEach((url) => {
       try {
         new URL(url);
