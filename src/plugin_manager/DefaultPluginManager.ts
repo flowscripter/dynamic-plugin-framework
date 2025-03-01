@@ -12,7 +12,6 @@ import type PluginRepository from "./plugin_repository/PluginRepository.ts";
 export default class DefaultPluginManager implements PluginManager {
   private readonly extensionPointRegistry: ExtensionPointRegistry;
   private readonly extensionRegistry: ExtensionRegistry;
-  private readonly pluginRepositories: Array<PluginRepository>;
   private readonly pluginRepositoriesByExtensionHandle = new Map<
     string,
     PluginRepository
@@ -29,11 +28,10 @@ export default class DefaultPluginManager implements PluginManager {
    * {@link InMemoryExtensionRegistry}
    */
   public constructor(
-    pluginRepositories: Array<PluginRepository>,
+    private readonly pluginRepositories: Array<PluginRepository>,
     extensionPointRegistry?: ExtensionPointRegistry,
     extensionRegistry?: ExtensionRegistry,
   ) {
-    this.pluginRepositories = pluginRepositories;
     this.extensionPointRegistry = extensionPointRegistry ||
       new InMemoryExtensionPointRegistry();
     this.extensionRegistry = extensionRegistry ||
