@@ -15,7 +15,7 @@ const INVALID_PLUGIN_URL = "file://" +
   );
 
 describe("UrlPluginSource Tests", () => {
-  test("Throws on invalid plugin",   () => {
+  test("Throws on invalid plugin", () => {
     const urlPluginSource = new UrlPluginSource();
 
     expect(
