@@ -28,6 +28,11 @@ export default class UrlPluginSource {
         plugin = pluginLoadResult.plugin;
         this.pluginsByUrl.set(url, plugin);
       }
+      if (pluginLoadResult.error) {
+        throw new Error(
+          `Failed to load plugin from ${url}: ${pluginLoadResult.error.message}`,
+        );
+      }
     }
     return Promise.resolve(this.pluginsByUrl.get(url));
   }
