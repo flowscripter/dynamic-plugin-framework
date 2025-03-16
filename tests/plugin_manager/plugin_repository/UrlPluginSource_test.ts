@@ -15,14 +15,14 @@ const INVALID_PLUGIN_URL = "file://" +
   );
 
 describe("UrlPluginSource Tests", () => {
-  test("Returns undefined on invalid plugin", async () => {
+  test("Throws on invalid plugin",   () => {
     const urlPluginSource = new UrlPluginSource();
 
     expect(
-      await urlPluginSource.loadPlugin(
+      urlPluginSource.loadPlugin(
         new URL(INVALID_PLUGIN_URL),
       ),
-    ).toBeUndefined();
+    ).rejects.toThrow();
   });
 
   test("Loads a plugin", async () => {
