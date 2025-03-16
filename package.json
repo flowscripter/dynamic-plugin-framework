@@ -1,7 +1,11 @@
 {
   "name": "@flowscripter/dynamic-plugin-framework",
   "description": "Dynamic plugin framework for Bun based on Javascript Modules and import() function",
-  "repository": "@flowscripter/dynamic-plugin-framework",
+  "homepage": "https://github.com/flowscripter/dynamic-plugin-framework#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowscripter/dynamic-plugin-framework.git"
+  },
   "license": "MIT",
   "keywords": [
     "bun",
