@@ -21,7 +21,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.8"
+    "@types/bun": "^1.2.9"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
