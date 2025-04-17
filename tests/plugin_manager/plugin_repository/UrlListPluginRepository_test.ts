@@ -18,12 +18,16 @@ describe("UrlPluginSource Tests", () => {
   });
 
   test("Throws on invalid URL", () => {
-    expect(() => new UrlListPluginRepository(new Set("foo"))).toThrow();
+    expect(() =>
+      new UrlListPluginRepository(
+        new Set([{ url: "foo", extensionPoints: ["bar"] }]),
+      )
+    ).toThrow();
   });
 
   test("Successfully scans for matching plugin", async () => {
-    const urlSet = new Set<string>();
-    urlSet.add(PLUGIN_1_URL);
+    const urlSet = new Set<{ url: string; extensionPoints: string[] }>();
+    urlSet.add({ url: PLUGIN_1_URL, extensionPoints: [EXTENSION_POINT_1] });
 
     const pluginRepository = new UrlListPluginRepository(urlSet);
 
@@ -41,8 +45,8 @@ describe("UrlPluginSource Tests", () => {
   });
 
   test("Successfully scans for non-matching plugin", async () => {
-    const urlSet = new Set<string>();
-    urlSet.add(PLUGIN_1_URL);
+    const urlSet = new Set<{ url: string; extensionPoints: string[] }>();
+    urlSet.add({ url: PLUGIN_1_URL, extensionPoints: [EXTENSION_POINT_1] });
 
     const pluginRepository = new UrlListPluginRepository(urlSet);
 

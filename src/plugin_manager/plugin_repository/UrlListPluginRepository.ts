@@ -5,6 +5,7 @@ import UrlPluginSource from "./UrlPluginSource.ts";
 
 /**
  * Implementation of {@link PluginRepository} using a provided set of URLs to access Plugins.
+ * Each plugin URL is linked to a list of extension points that are available in the Plugin.
  *
  * When scanning for Plugins each provided URL will be used to attempt to load a Plugin and examine it.
  */
@@ -16,17 +17,31 @@ export default class UrlListPluginRepository implements PluginRepository {
    *
    * @throws *Error* if the URL set contains a non-valid URL.
    */
-  public constructor(private readonly urls: Set<string>) {
-    if (!urls || (urls.size === 0)) {
-      throw new Error(`Undefined or empty set of URLs provided`);
+  public constructor(
+    private readonly urlsAndExtensionPoints: Set<
+      { url: string; extensionPoints: string[] }
+    >,
+  ) {
+    if (!urlsAndExtensionPoints || (urlsAndExtensionPoints.size === 0)) {
+      throw new Error(
+        `Undefined or empty set of URL and extension points provided`,
+      );
     }
-    this.urls.forEach((url) => {
+    this.urlsAndExtensionPoints.forEach((urlAndExtensionPoint) => {
       try {
-        new URL(url);
+        new URL(urlAndExtensionPoint.url);
       } catch (err) {
         throw new Error(
-          `Cannot parse ${url} as a URL: ${(err as Error).message}`,
+          `Cannot parse ${urlAndExtensionPoint.url} as a URL: ${
+            (err as Error).message
+          }`,
         );
+      }
+      if (
+        !urlAndExtensionPoint.extensionPoints ||
+        (urlAndExtensionPoint.extensionPoints.length === 0)
+      ) {
+        throw new Error(`Undefined or empty set of extension points provided`);
       }
     });
   }
@@ -34,11 +49,17 @@ export default class UrlListPluginRepository implements PluginRepository {
   private async *getExtensionEntryAsyncIterable(
     extensionPoint: string,
   ): AsyncIterable<ExtensionEntry> {
-    // As this is just a list of URLs we need to load each and then filter for extensionPoint
-    for await (const candidateUrl of this.urls) {
-      const plugin = await this.pluginSource.loadPlugin(new URL(candidateUrl));
+    // We need to iterate each entry and filter for extensionPoint
+    for await (const urlAndExtensionPoints of this.urlsAndExtensionPoints) {
+      if (!urlAndExtensionPoints.extensionPoints.includes(extensionPoint)) {
+        continue;
+      }
+      const plugin = await this.pluginSource.loadPlugin(
+        new URL(urlAndExtensionPoints.url),
+      );
 
       if (plugin) {
+        // Once we have loaded the plugin, double check on the extension points in the plugin
         // filter Extensions in each Plugin by specified Extension Point
         // and map any matches to an Extension Entry
         for (let i = 0; i < plugin.extensionDescriptors.length; i++) {
@@ -47,7 +68,7 @@ export default class UrlListPluginRepository implements PluginRepository {
             continue;
           }
           yield {
-            pluginId: candidateUrl,
+            pluginId: urlAndExtensionPoints.url,
             extensionId: `${i}`,
             extensionPoint,
             pluginData: plugin.pluginData,

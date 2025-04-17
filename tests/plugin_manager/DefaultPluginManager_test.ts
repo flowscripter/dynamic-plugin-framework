@@ -22,7 +22,7 @@ describe("DefaultPluginManager Tests", () => {
 
   test("Successfully register extension point", async () => {
     const urlListPluginRepository = new UrlListPluginRepository(
-      new Set([PLUGIN_1_URL]),
+      new Set([{ url: PLUGIN_1_URL, extensionPoints: [EXTENSION_POINT_1] }]),
     );
     const defaultPluginManager = new DefaultPluginManager([
       urlListPluginRepository,
@@ -45,7 +45,7 @@ describe("DefaultPluginManager Tests", () => {
 
   test("Registering an extension point twice has no effect", async () => {
     const urlListPluginRepository = new UrlListPluginRepository(
-      new Set([PLUGIN_1_URL]),
+      new Set([{ url: PLUGIN_1_URL, extensionPoints: [EXTENSION_POINT_1] }]),
     );
     const defaultPluginManager = new DefaultPluginManager([
       urlListPluginRepository,
@@ -70,7 +70,7 @@ describe("DefaultPluginManager Tests", () => {
 
   test("Instantiating an extension works", async () => {
     const urlListPluginRepository = new UrlListPluginRepository(
-      new Set([PLUGIN_1_URL]),
+      new Set([{ url: PLUGIN_1_URL, extensionPoints: [EXTENSION_POINT_1] }]),
     );
     const defaultPluginManager = new DefaultPluginManager([
       urlListPluginRepository,

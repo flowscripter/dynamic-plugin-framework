@@ -1,3 +1,6 @@
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type Plugin from "../../api/plugin/Plugin.ts";
 
 /**
@@ -20,10 +23,38 @@ export interface PluginLoadResult {
   error?: Error;
 }
 
+async function getLocalUrl(remoteUrl: string) {
+  const url = new URL(remoteUrl);
+  const urlPath = url.pathname;
+
+  // look in local cache location
+  const localPluginFolder = path.join(os.homedir(), ".flowscripter", "plugin");
+  const localPluginPath = path.join(localPluginFolder, urlPath);
+  const installePluginFile = Bun.file(localPluginPath);
+  const exists = await installePluginFile.exists();
+
+  if (exists) {
+    return localPluginPath;
+  }
+
+  await mkdir(path.dirname(localPluginPath), { recursive: true });
+
+  const result = await fetch(remoteUrl);
+
+  await Bun.write(installePluginFile, result);
+
+  return localPluginPath;
+}
+
 /**
  * Utility function to import a specified module and validate it is a {@link Plugin} implementation.
  *
- * @param url the URL of the module to import
+ * If the URL specified is not local filesystem (e.g. http(s)://) and the dynamic import fails with ENOENT
+ * then the remote item will be fetched and the contents of the response will be used as the module source
+ * i.e. a local dynamic import will be attempted.  This is because the Bun runtime does not support importing
+ * remote modules directly as per https://github.com/oven-sh/bun/issues/38
+ *
+ * @param url the URL of the module to import.
  */
 export default async function loadPlugin(
   url: string,
@@ -39,6 +70,19 @@ export default async function loadPlugin(
   try {
     module = await import(url);
   } catch (err) {
+    if ((err instanceof Error) && (err.message === "ENOENT")) {
+      const urlLower = url.toLowerCase();
+      if (urlLower.startsWith("http://") || urlLower.startsWith("https://")) {
+        const localUrl = await getLocalUrl(url);
+
+        try {
+          module = await import(localUrl);
+        } catch (err2) {
+          result.error = err2 as Error;
+          return result;
+        }
+      }
+    }
     result.error = err as Error;
     return result;
   }
