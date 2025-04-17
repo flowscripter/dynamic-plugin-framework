@@ -70,21 +70,23 @@ export default async function loadPlugin(
   try {
     module = await import(url);
   } catch (err) {
-    if ((err instanceof Error) && (err.message === "ENOENT")) {
-      const urlLower = url.toLowerCase();
-      if (urlLower.startsWith("http://") || urlLower.startsWith("https://")) {
-        const localUrl = await getLocalUrl(url);
-
-        try {
-          module = await import(localUrl);
-        } catch (err2) {
-          result.error = err2 as Error;
-          return result;
-        }
-      }
+    if (
+      ((err as { message: string }).message === undefined) ||
+      (!(err as { message: string }).message.startsWith("ENOENT")) ||
+      (!url.toLowerCase().startsWith("http://") &&
+        !url.toLowerCase().startsWith("https://"))
+    ) {
+      result.error = err as Error;
+      return result;
     }
-    result.error = err as Error;
-    return result;
+    const localUrl = await getLocalUrl(url);
+
+    try {
+      module = await import(localUrl);
+    } catch (err2) {
+      result.error = err2 as Error;
+      return result;
+    }
   }
 
   const potentialPlugin = module.default;
