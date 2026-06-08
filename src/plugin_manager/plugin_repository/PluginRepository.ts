@@ -13,9 +13,7 @@ export default interface PluginRepository {
    *
    * @return an async iterable of {@link ExtensionEntry} instances for all matching Extensions.
    */
-  scanForExtensions(
-    extensionPoint: string,
-  ): AsyncIterable<Readonly<ExtensionEntry>>;
+  scanForExtensions(extensionPoint: string): AsyncIterable<Readonly<ExtensionEntry>>;
 
   /**
    * Return the {@link ExtensionDescriptor} for the Extension identified by the specified {@link ExtensionEntry}.

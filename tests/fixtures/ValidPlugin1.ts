@@ -26,9 +26,7 @@ export const extensionDescriptor1: ExtensionDescriptor = {
 const plugin1: Plugin = {
   pluginData: new Map([["foo", "bar"]]),
 
-  extensionDescriptors: [
-    extensionDescriptor1,
-  ],
+  extensionDescriptors: [extensionDescriptor1],
 };
 
 export default plugin1;

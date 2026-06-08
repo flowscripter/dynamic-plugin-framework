@@ -3,8 +3,7 @@ import type ExtensionPointRegistry from "./ExtensionPointRegistry.ts";
 /**
  * Simple implementation of an {@link ExtensionPointRegistry} using an in-memory Set.
  */
-export default class InMemoryExtensionPointRegistry
-  implements ExtensionPointRegistry {
+export default class InMemoryExtensionPointRegistry implements ExtensionPointRegistry {
   private readonly extensionPoints: Set<string> = new Set();
 
   /**

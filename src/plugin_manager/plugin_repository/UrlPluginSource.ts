@@ -21,17 +21,12 @@ export default class UrlPluginSource {
 
     if (!plugin) {
       const pluginLoadResult = await loadPlugin(url.toString());
-      if (
-        pluginLoadResult.isValidPlugin &&
-        (pluginLoadResult.plugin !== undefined)
-      ) {
+      if (pluginLoadResult.isValidPlugin && pluginLoadResult.plugin !== undefined) {
         plugin = pluginLoadResult.plugin;
         this.pluginsByUrl.set(url, plugin);
       }
       if (pluginLoadResult.error) {
-        throw new Error(
-          `Failed to load plugin from ${url}: ${pluginLoadResult.error.message}`,
-        );
+        throw new Error(`Failed to load plugin from ${url}: ${pluginLoadResult.error.message}`);
       }
     }
     return Promise.resolve(this.pluginsByUrl.get(url));

@@ -10,10 +10,7 @@ export default interface ExtensionRegistry {
    * @param extensionHandle a unique identifier under which to register the {@link ExtensionEntry}
    * @param extensionEntry the {@link ExtensionEntry} for the Extension to register
    */
-  register(
-    extensionHandle: string,
-    extensionEntry: ExtensionEntry,
-  ): Promise<void>;
+  register(extensionHandle: string, extensionEntry: ExtensionEntry): Promise<void>;
 
   /**
    * Return the specified registered {@link ExtensionEntry} instance.
@@ -32,7 +29,5 @@ export default interface ExtensionRegistry {
    * @return a map of extension handle to {@link ExtensionEntry} for all matching
    * registered {@link ExtensionEntry} instances
    */
-  getExtensions(
-    extensionPoint: string,
-  ): Promise<ReadonlyMap<string, ExtensionEntry>>;
+  getExtensions(extensionPoint: string): Promise<ReadonlyMap<string, ExtensionEntry>>;
 }

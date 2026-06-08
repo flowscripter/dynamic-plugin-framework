@@ -1,5 +1,7 @@
 export default {
-  extensionDescriptors: [{
-    extensionPoint: "foo",
-  }],
+  extensionDescriptors: [
+    {
+      extensionPoint: "foo",
+    },
+  ],
 };

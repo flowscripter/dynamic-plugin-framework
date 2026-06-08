@@ -28,8 +28,7 @@ describe("InMemoryExtensionRegistry Tests", () => {
   test("Register extension", async () => {
     const extensionRegistry = new InMemoryExtensionRegistry();
 
-    expect(extensionRegistry.get(EXTENSION_1_HANDLE)).rejects
-      .toThrow();
+    expect(extensionRegistry.get(EXTENSION_1_HANDLE)).rejects.toThrow();
 
     await extensionRegistry.register(EXTENSION_1_HANDLE, extensionEntry1);
 
@@ -41,8 +40,7 @@ describe("InMemoryExtensionRegistry Tests", () => {
 
     await extensionRegistry.register(EXTENSION_1_HANDLE, extensionEntry1);
 
-    expect(extensionRegistry.register(EXTENSION_1_HANDLE, extensionEntry1))
-      .rejects.toThrow();
+    expect(extensionRegistry.register(EXTENSION_1_HANDLE, extensionEntry1)).rejects.toThrow();
   });
 
   test("Get registered extensions", async () => {
@@ -51,22 +49,14 @@ describe("InMemoryExtensionRegistry Tests", () => {
     await extensionRegistry.register(EXTENSION_1_HANDLE, extensionEntry1);
     await extensionRegistry.register(EXTENSION_2_HANDLE, extensionEntry2);
 
-    const extensionEntries1 = await extensionRegistry.getExtensions(
-      EXTENSION_POINT_1,
-    );
+    const extensionEntries1 = await extensionRegistry.getExtensions(EXTENSION_POINT_1);
 
     expect(extensionEntries1.size).toEqual(1);
-    expect(
-      extensionEntries1.get(EXTENSION_1_HANDLE)?.extensionId,
-    ).toEqual(EXTENSION_1_ID);
+    expect(extensionEntries1.get(EXTENSION_1_HANDLE)?.extensionId).toEqual(EXTENSION_1_ID);
 
-    const extensionEntries2 = await extensionRegistry.getExtensions(
-      EXTENSION_POINT_2,
-    );
+    const extensionEntries2 = await extensionRegistry.getExtensions(EXTENSION_POINT_2);
 
     expect(extensionEntries2.size).toEqual(1);
-    expect(
-      extensionEntries2.get(EXTENSION_2_HANDLE)?.extensionId,
-    ).toEqual(EXTENSION_2_ID);
+    expect(extensionEntries2.get(EXTENSION_2_HANDLE)?.extensionId).toEqual(EXTENSION_2_ID);
   });
 });
