@@ -1,4 +1,0 @@
-{
-  "tsconfig": "./tsconfig.typedoc.json",
-  "exclude": ["tests/**/*"]
-}
