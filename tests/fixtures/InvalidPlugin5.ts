@@ -1,8 +1,10 @@
 export default {
-  extensionDescriptors: [{
-    extensionPoint: "foo",
-    factory: {
-      bar: () => {},
+  extensionDescriptors: [
+    {
+      extensionPoint: "foo",
+      factory: {
+        bar: () => {},
+      },
     },
-  }],
+  ],
 };

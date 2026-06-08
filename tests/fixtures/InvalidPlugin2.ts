@@ -1,5 +1,7 @@
 export default {
-  extensionDescriptors: [{
-    extensionData: "foo",
-  }],
+  extensionDescriptors: [
+    {
+      extensionData: "foo",
+    },
+  ],
 };

@@ -18,9 +18,7 @@ export default interface PluginManager {
    *
    * @return array of {@link ExtensionInfo}
    */
-  getRegisteredExtensions(
-    extensionPoint: string,
-  ): Promise<ReadonlyArray<ExtensionInfo>>;
+  getRegisteredExtensions(extensionPoint: string): Promise<ReadonlyArray<ExtensionInfo>>;
 
   /**
    * Instantiate a specific Extension.
@@ -31,8 +29,5 @@ export default interface PluginManager {
    *
    * @return an Extension instance implementing an Extension Point.
    */
-  instantiate(
-    extensionHandle: string,
-    hostData?: Map<string, string>,
-  ): Promise<unknown>;
+  instantiate(extensionHandle: string, hostData?: Map<string, string>): Promise<unknown>;
 }

@@ -9,7 +9,7 @@
 > Dynamic plugin framework for Bun based on Javascript Modules and import()
 > function
 
-[//]: # (TODO: Remove this when plugin indexing and discovery available.)
+[//]: # "TODO: Remove this when plugin indexing and discovery available."
 
 **STILL IN DEVELOPMENT**
 
@@ -242,20 +242,17 @@ Test:
 
 `bun test`
 
-**NOTE**: The following tasks use Deno as it excels at these and Bun does not
-currently provide such functionality:
-
 Format:
 
-`deno fmt`
+`bunx oxfmt`
 
 Lint:
 
-`deno lint index.ts src/ tests/`
+`bunx oxlint index.ts src/ tests/`
 
 Generate HTML API Documentation:
 
-`deno doc --html --name=dynamic-plugin-framework index.ts`
+`bunx typedoc --readme none index.ts`
 
 The following diagram provides an overview of the main internal classes:
 

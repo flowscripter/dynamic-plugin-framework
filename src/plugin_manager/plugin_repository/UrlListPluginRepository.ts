@@ -18,28 +18,22 @@ export default class UrlListPluginRepository implements PluginRepository {
    * @throws *Error* if the URL set contains a non-valid URL.
    */
   public constructor(
-    private readonly urlsAndExtensionPoints: Set<
-      { url: string; extensionPoints: string[] }
-    >,
+    private readonly urlsAndExtensionPoints: Set<{ url: string; extensionPoints: string[] }>,
   ) {
-    if (!urlsAndExtensionPoints || (urlsAndExtensionPoints.size === 0)) {
-      throw new Error(
-        `Undefined or empty set of URL and extension points provided`,
-      );
+    if (!urlsAndExtensionPoints || urlsAndExtensionPoints.size === 0) {
+      throw new Error(`Undefined or empty set of URL and extension points provided`);
     }
     this.urlsAndExtensionPoints.forEach((urlAndExtensionPoint) => {
       try {
         new URL(urlAndExtensionPoint.url);
       } catch (err) {
         throw new Error(
-          `Cannot parse ${urlAndExtensionPoint.url} as a URL: ${
-            (err as Error).message
-          }`,
+          `Cannot parse ${urlAndExtensionPoint.url} as a URL: ${(err as Error).message}`,
         );
       }
       if (
         !urlAndExtensionPoint.extensionPoints ||
-        (urlAndExtensionPoint.extensionPoints.length === 0)
+        urlAndExtensionPoint.extensionPoints.length === 0
       ) {
         throw new Error(`Undefined or empty set of extension points provided`);
       }
@@ -54,9 +48,7 @@ export default class UrlListPluginRepository implements PluginRepository {
       if (!urlAndExtensionPoints.extensionPoints.includes(extensionPoint)) {
         continue;
       }
-      const plugin = await this.pluginSource.loadPlugin(
-        new URL(urlAndExtensionPoints.url),
-      );
+      const plugin = await this.pluginSource.loadPlugin(new URL(urlAndExtensionPoints.url));
 
       if (plugin) {
         // Once we have loaded the plugin, double check on the extension points in the plugin
@@ -79,9 +71,7 @@ export default class UrlListPluginRepository implements PluginRepository {
     }
   }
 
-  public scanForExtensions(
-    extensionPoint: string,
-  ): AsyncIterable<ExtensionEntry> {
+  public scanForExtensions(extensionPoint: string): AsyncIterable<ExtensionEntry> {
     return this.getExtensionEntryAsyncIterable(extensionPoint);
   }
 
@@ -93,9 +83,7 @@ export default class UrlListPluginRepository implements PluginRepository {
   public async getExtensionDescriptorFromExtensionEntry(
     extensionEntry: ExtensionEntry,
   ): Promise<Readonly<ExtensionDescriptor>> {
-    const plugin = await this.pluginSource.loadPlugin(
-      new URL(extensionEntry.pluginId),
-    );
+    const plugin = await this.pluginSource.loadPlugin(new URL(extensionEntry.pluginId));
 
     if (!plugin) {
       return Promise.reject(`Plugin ID ${extensionEntry.pluginId} is unknown`);
@@ -106,17 +94,11 @@ export default class UrlListPluginRepository implements PluginRepository {
     try {
       extensionId = parseInt(extensionEntry.extensionId);
     } catch (_e) {
-      return Promise.reject(
-        `Extension ID ${extensionEntry.extensionId} is unknown`,
-      );
+      return Promise.reject(`Extension ID ${extensionEntry.extensionId} is unknown`);
     }
 
-    if (
-      (extensionId < 0) || (extensionId >= plugin.extensionDescriptors.length)
-    ) {
-      return Promise.reject(
-        `Extension ID ${extensionEntry.extensionId} is unknown`,
-      );
+    if (extensionId < 0 || extensionId >= plugin.extensionDescriptors.length) {
+      return Promise.reject(`Extension ID ${extensionEntry.extensionId} is unknown`);
     }
 
     return Promise.resolve(plugin.extensionDescriptors[extensionId]);

@@ -56,9 +56,7 @@ async function getLocalUrl(remoteUrl: string) {
  *
  * @param url the URL of the module to import.
  */
-export default async function loadPlugin(
-  url: string,
-): Promise<Readonly<PluginLoadResult>> {
+export default async function loadPlugin(url: string): Promise<Readonly<PluginLoadResult>> {
   const result: PluginLoadResult = {
     isValidPlugin: false,
     plugin: undefined,
@@ -71,10 +69,9 @@ export default async function loadPlugin(
     module = await import(url);
   } catch (err) {
     if (
-      ((err as { message: string }).message === undefined) ||
-      (!(err as { message: string }).message.startsWith("ENOENT")) ||
-      (!url.toLowerCase().startsWith("http://") &&
-        !url.toLowerCase().startsWith("https://"))
+      (err as { message: string }).message === undefined ||
+      !(err as { message: string }).message.startsWith("ENOENT") ||
+      (!url.toLowerCase().startsWith("http://") && !url.toLowerCase().startsWith("https://"))
     ) {
       result.error = err as Error;
       return result;
@@ -93,25 +90,19 @@ export default async function loadPlugin(
 
   // check the assumed Plugin has an array of extension descriptors
   if (!Array.isArray(potentialPlugin.extensionDescriptors)) {
-    result.error = new Error(
-      `Plugin from ${url} does not provide an extensionDescriptors array`,
-    );
+    result.error = new Error(`Plugin from ${url} does not provide an extensionDescriptors array`);
     return result;
   }
 
   // At this point assume it is a valid plugin and then disprove this
   result.isValidPlugin = true;
 
-  for (
-    const potentialExtensionDescriptor of potentialPlugin
-      .extensionDescriptors
-  ) {
+  for (const potentialExtensionDescriptor of potentialPlugin.extensionDescriptors) {
     // check for valid {@link ExtensionDescriptor.extensionPoint}
     if (
-      (potentialExtensionDescriptor.extensionPoint === undefined) ||
-      (!(potentialExtensionDescriptor.extensionPoint as unknown instanceof
-        String) &&
-        (typeof potentialExtensionDescriptor.extensionPoint !== "string"))
+      potentialExtensionDescriptor.extensionPoint === undefined ||
+      (!((potentialExtensionDescriptor.extensionPoint as unknown) instanceof String) &&
+        typeof potentialExtensionDescriptor.extensionPoint !== "string")
     ) {
       result.isValidPlugin = false;
       result.error = new Error(
@@ -121,10 +112,9 @@ export default async function loadPlugin(
     }
     // check for valid {@link ExtensionDescriptor.factory.create function}
     if (
-      (potentialExtensionDescriptor.factory === undefined) ||
-      (potentialExtensionDescriptor.factory.create === undefined) ||
-      !(potentialExtensionDescriptor.factory.create as unknown instanceof
-        Function)
+      potentialExtensionDescriptor.factory === undefined ||
+      potentialExtensionDescriptor.factory.create === undefined ||
+      !((potentialExtensionDescriptor.factory.create as unknown) instanceof Function)
     ) {
       result.isValidPlugin = false;
       result.error = new Error(

@@ -5,40 +5,27 @@ import type ExtensionEntry from "../plugin_repository/ExtensionEntry.ts";
  * Simple implementation of an {@link ExtensionRegistry} using an in-memory map.
  */
 export default class InMemoryExtensionRegistry implements ExtensionRegistry {
-  private readonly extensionEntriesByHandle: Map<string, ExtensionEntry> =
-    new Map();
+  private readonly extensionEntriesByHandle: Map<string, ExtensionEntry> = new Map();
 
-  private readonly extensionEntriesByExtensionPoint: Map<
-    string,
-    Map<string, ExtensionEntry>
-  > = new Map();
+  private readonly extensionEntriesByExtensionPoint: Map<string, Map<string, ExtensionEntry>> =
+    new Map();
 
   /**
    * @inheritDoc
    *
    * @throws *Error* if the specified Extension handle has already been registered
    */
-  public register(
-    extensionHandle: string,
-    extensionEntry: ExtensionEntry,
-  ): Promise<void> {
+  public register(extensionHandle: string, extensionEntry: ExtensionEntry): Promise<void> {
     if (this.extensionEntriesByHandle.has(extensionHandle)) {
-      return Promise.reject(
-        `Extension handle ${extensionHandle} has already been registered`,
-      );
+      return Promise.reject(`Extension handle ${extensionHandle} has already been registered`);
     }
     this.extensionEntriesByHandle.set(extensionHandle, extensionEntry);
 
-    let extensionEntries = this.extensionEntriesByExtensionPoint.get(
-      extensionEntry.extensionPoint,
-    );
+    let extensionEntries = this.extensionEntriesByExtensionPoint.get(extensionEntry.extensionPoint);
 
     if (extensionEntries === undefined) {
       extensionEntries = new Map();
-      this.extensionEntriesByExtensionPoint.set(
-        extensionEntry.extensionPoint,
-        extensionEntries,
-      );
+      this.extensionEntriesByExtensionPoint.set(extensionEntry.extensionPoint, extensionEntries);
     }
     extensionEntries.set(extensionHandle, extensionEntry);
 
@@ -59,11 +46,7 @@ export default class InMemoryExtensionRegistry implements ExtensionRegistry {
     return Promise.resolve(Object.freeze(extensionEntry));
   }
 
-  public getExtensions(
-    extensionPoint: string,
-  ): Promise<ReadonlyMap<string, ExtensionEntry>> {
-    return Promise.resolve(
-      this.extensionEntriesByExtensionPoint.get(extensionPoint) || new Map(),
-    );
+  public getExtensions(extensionPoint: string): Promise<ReadonlyMap<string, ExtensionEntry>> {
+    return Promise.resolve(this.extensionEntriesByExtensionPoint.get(extensionPoint) || new Map());
   }
 }

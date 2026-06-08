@@ -12,30 +12,25 @@ import type PluginRepository from "./plugin_repository/PluginRepository.ts";
 export default class DefaultPluginManager implements PluginManager {
   private readonly extensionPointRegistry: ExtensionPointRegistry;
   private readonly extensionRegistry: ExtensionRegistry;
-  private readonly pluginRepositoriesByExtensionHandle = new Map<
-    string,
-    PluginRepository
-  >();
+  private readonly pluginRepositoriesByExtensionHandle = new Map<string, PluginRepository>();
 
   /**
    * Constructor configures the instance using the optionally specified
    * {@link ExtensionPointRegistry} and {@link ExtensionRegistry}.
    *
    * @param pluginRepositories One or more {@link PluginRepository} instances to use for plugin discovery.
-   * @param extensionPointRegistry optional {@link ExtensionPointRegistry]] implementation. Defaults to using
-   * {@link InMemoryExtensionPointRegistry}.
+   * @param extensionPointRegistry optional {@link ExtensionPointRegistry} implementation. Defaults to using
+   * InMemoryExtensionPointRegistry.
    * @param extensionRegistry optional {@link ExtensionRegistry} implementation. Defaults to using
-   * {@link InMemoryExtensionRegistry}
+   * InMemoryExtensionRegistry
    */
   public constructor(
     private readonly pluginRepositories: Array<PluginRepository>,
     extensionPointRegistry?: ExtensionPointRegistry,
     extensionRegistry?: ExtensionRegistry,
   ) {
-    this.extensionPointRegistry = extensionPointRegistry ||
-      new InMemoryExtensionPointRegistry();
-    this.extensionRegistry = extensionRegistry ||
-      new InMemoryExtensionRegistry();
+    this.extensionPointRegistry = extensionPointRegistry || new InMemoryExtensionPointRegistry();
+    this.extensionRegistry = extensionRegistry || new InMemoryExtensionRegistry();
   }
 
   public async registerExtensions(extensionPoint: string): Promise<void> {
@@ -47,18 +42,10 @@ export default class DefaultPluginManager implements PluginManager {
 
     for (let i = 0; i < this.pluginRepositories.length; i++) {
       const pluginRepository = this.pluginRepositories[i];
-      for await (
-        const extensionEntry of pluginRepository.scanForExtensions(
-          extensionPoint,
-        )
-      ) {
-        const extensionHandle =
-          `${i}:${extensionEntry.pluginId}:${extensionEntry.extensionId}`;
+      for await (const extensionEntry of pluginRepository.scanForExtensions(extensionPoint)) {
+        const extensionHandle = `${i}:${extensionEntry.pluginId}:${extensionEntry.extensionId}`;
 
-        this.pluginRepositoriesByExtensionHandle.set(
-          extensionHandle,
-          pluginRepository,
-        );
+        this.pluginRepositoriesByExtensionHandle.set(extensionHandle, pluginRepository);
         await this.extensionRegistry.register(extensionHandle, extensionEntry);
       }
     }
@@ -67,9 +54,7 @@ export default class DefaultPluginManager implements PluginManager {
   public async getRegisteredExtensions(
     extensionPoint: string,
   ): Promise<ReadonlyArray<ExtensionInfo>> {
-    const extensionMap = await this.extensionRegistry.getExtensions(
-      extensionPoint,
-    );
+    const extensionMap = await this.extensionRegistry.getExtensions(extensionPoint);
     const registeredExtensions = new Array<ExtensionInfo>();
 
     extensionMap.forEach((entry, handle) => {
@@ -96,16 +81,14 @@ export default class DefaultPluginManager implements PluginManager {
     const extensionEntry = await this.extensionRegistry.get(extensionHandle);
 
     // Get the Plugin Repository for the Extension Handle
-    const pluginRepository = this.pluginRepositoriesByExtensionHandle.get(
-      extensionHandle,
-    );
+    const pluginRepository = this.pluginRepositoriesByExtensionHandle.get(extensionHandle);
 
     if (!pluginRepository) {
       return Promise.reject(`Extension handle ${extensionHandle} is unknown`);
     }
     // Get the Extension Descriptor from the Plugin Repository
-    const extensionDescriptor = await pluginRepository
-      .getExtensionDescriptorFromExtensionEntry(extensionEntry);
+    const extensionDescriptor =
+      await pluginRepository.getExtensionDescriptorFromExtensionEntry(extensionEntry);
 
     return extensionDescriptor.factory.create(hostData);
   }

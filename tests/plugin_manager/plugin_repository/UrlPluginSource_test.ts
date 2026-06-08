@@ -2,27 +2,19 @@ import { describe, expect, test } from "bun:test";
 import path from "node:path";
 import UrlPluginSource from "../../../src/plugin_manager/plugin_repository/UrlPluginSource.ts";
 
-const PLUGIN_1_URL = "file://" +
-  path.join(
-    path.dirname(Bun.fileURLToPath(import.meta.url)),
-    "../../fixtures/ValidPlugin1.ts",
-  );
+const PLUGIN_1_URL =
+  "file://" +
+  path.join(path.dirname(Bun.fileURLToPath(import.meta.url)), "../../fixtures/ValidPlugin1.ts");
 
-const INVALID_PLUGIN_URL = "file://" +
-  path.join(
-    path.dirname(Bun.fileURLToPath(import.meta.url)),
-    "../../fixtures/InvalidPlugin1.ts",
-  );
+const INVALID_PLUGIN_URL =
+  "file://" +
+  path.join(path.dirname(Bun.fileURLToPath(import.meta.url)), "../../fixtures/InvalidPlugin1.ts");
 
 describe("UrlPluginSource Tests", () => {
   test("Throws on invalid plugin", () => {
     const urlPluginSource = new UrlPluginSource();
 
-    expect(
-      urlPluginSource.loadPlugin(
-        new URL(INVALID_PLUGIN_URL),
-      ),
-    ).rejects.toThrow();
+    expect(urlPluginSource.loadPlugin(new URL(INVALID_PLUGIN_URL))).rejects.toThrow();
   });
 
   test("Loads a plugin", async () => {
