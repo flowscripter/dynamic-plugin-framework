@@ -19,10 +19,10 @@ export default class DefaultPluginManager implements PluginManager {
    * {@link ExtensionPointRegistry} and {@link ExtensionRegistry}.
    *
    * @param pluginRepositories One or more {@link PluginRepository} instances to use for plugin discovery.
-   * @param extensionPointRegistry optional {@link ExtensionPointRegistry]] implementation. Defaults to using
-   * {@link InMemoryExtensionPointRegistry}.
+   * @param extensionPointRegistry optional {@link ExtensionPointRegistry} implementation. Defaults to using
+   * InMemoryExtensionPointRegistry.
    * @param extensionRegistry optional {@link ExtensionRegistry} implementation. Defaults to using
-   * {@link InMemoryExtensionRegistry}
+   * InMemoryExtensionRegistry
    */
   public constructor(
     private readonly pluginRepositories: Array<PluginRepository>,
