@@ -27,5 +27,11 @@
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
+  },
+  "typedocOptions": {
+    "readme": "none",
+    "exclude": [
+      "tests/**"
+    ]
   }
 }
