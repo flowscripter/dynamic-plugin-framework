@@ -17,6 +17,10 @@
   },
   "type": "module",
   "module": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./plugin": "./plugin.ts"
+  },
   "publishConfig": {
     "access": "public"
   },
