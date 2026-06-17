@@ -16,6 +16,11 @@ discovered and imported into a running process.
 
 #### Key Features
 
+- Plugins published as bundled JS files or npm packages.
+- Plugin versioning with scope, name, semver version and dependency declarations
+- Searchable marketplace repositories backed by npmjs.com (or compatible registries) or a static HTTP manifest
+- Local plugin repositories backed by a `node_modules` folder or a local install folder
+- Plugin installer with dependency resolution, update checking and dependent-safety guards on uninstall
 - Universal support for both Bun and browser runtimes
 - Dynamic plugin import using
   [Javascript dynamic import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)

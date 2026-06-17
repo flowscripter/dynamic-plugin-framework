@@ -3,7 +3,7 @@
  */
 export default interface ExtensionEntry {
   /**
-   * ID provided by a {@link PluginRepository} to reference a a Plugin.
+   * ID provided by a {@link PluginRepository} to reference a Plugin.
    *
    * Note that this is only unique per {@link PluginRepository}.
    */

@@ -17,7 +17,7 @@ export default interface ExtensionPointRegistry {
   getAll(): Promise<ReadonlySet<string>>;
 
   /**
-   * Returns *true* if the specified Extension Point has been registered.
+   * Returns `true` if the specified Extension Point has been registered.
    *
    * @param extensionPoint the Extension Point to check
    */

@@ -1,10 +1,18 @@
 import type ExtensionEntry from "./ExtensionEntry.ts";
-import type ExtensionDescriptor from "../../api/plugin/ExtensionDescriptor.ts";
+import type ExtensionDescriptor from "../plugin/ExtensionDescriptor.ts";
+import type PluginDescriptor from "./PluginDescriptor.ts";
 
 /**
  * A source of {@link Plugin} implementations.
  */
 export default interface PluginRepository {
+  /**
+   * Return a {@link PluginDescriptor} for each Plugin hosted in the Plugin Repository.
+   *
+   * @return an async iterable of {@link PluginDescriptor} instances.
+   */
+  getPlugins(): AsyncIterable<Readonly<PluginDescriptor>>;
+
   /**
    * Return an {@link ExtensionEntry} for each Extension hosted in the Plugin Repository which provides an
    * Extension for the specified Extension Point.

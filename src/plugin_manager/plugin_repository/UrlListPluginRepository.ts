@@ -1,7 +1,10 @@
-import type PluginRepository from "./PluginRepository.ts";
+import type PluginRepository from "../../api/plugin_repository/PluginRepository.ts";
 import type ExtensionDescriptor from "../../api/plugin/ExtensionDescriptor.ts";
-import type ExtensionEntry from "./ExtensionEntry.ts";
+import type ExtensionEntry from "../../api/plugin_repository/ExtensionEntry.ts";
+import type PluginDescriptor from "../../api/plugin_repository/PluginDescriptor.ts";
 import UrlPluginSource from "./UrlPluginSource.ts";
+import os from "node:os";
+import path from "node:path";
 
 /**
  * Implementation of {@link PluginRepository} using a provided set of URLs to access Plugins.
@@ -10,7 +13,7 @@ import UrlPluginSource from "./UrlPluginSource.ts";
  * When scanning for Plugins each provided URL will be used to attempt to load a Plugin and examine it.
  */
 export default class UrlListPluginRepository implements PluginRepository {
-  private readonly pluginSource = new UrlPluginSource();
+  private readonly pluginSource: UrlPluginSource;
 
   /**
    * Constructor configures the instance using the specified set of URLs.
@@ -19,6 +22,7 @@ export default class UrlListPluginRepository implements PluginRepository {
    */
   public constructor(
     private readonly urlsAndExtensionPoints: Set<{ url: string; extensionPoints: string[] }>,
+    private readonly cacheFolder: string = path.join(os.homedir(), ".flowscripter", "plugin"),
   ) {
     if (!urlsAndExtensionPoints || urlsAndExtensionPoints.size === 0) {
       throw new Error(`Undefined or empty set of URL and extension points provided`);
@@ -38,6 +42,26 @@ export default class UrlListPluginRepository implements PluginRepository {
         throw new Error(`Undefined or empty set of extension points provided`);
       }
     });
+    this.pluginSource = new UrlPluginSource(this.cacheFolder);
+  }
+
+  private async *getPluginsAsyncIterable(): AsyncIterable<PluginDescriptor> {
+    for await (const urlAndExtensionPoints of this.urlsAndExtensionPoints) {
+      const plugin = await this.pluginSource.loadPlugin(new URL(urlAndExtensionPoints.url));
+      if (plugin) {
+        const extensionPoints = plugin.extensionDescriptors.map((ed) => ed.extensionPoint);
+        const unique = [...new Set(extensionPoints)];
+        yield {
+          pluginId: urlAndExtensionPoints.url,
+          pluginData: plugin.pluginData,
+          extensionPoints: unique,
+        };
+      }
+    }
+  }
+
+  public getPlugins(): AsyncIterable<Readonly<PluginDescriptor>> {
+    return this.getPluginsAsyncIterable();
   }
 
   private async *getExtensionEntryAsyncIterable(

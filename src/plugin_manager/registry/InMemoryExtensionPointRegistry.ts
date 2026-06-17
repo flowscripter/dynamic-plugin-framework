@@ -1,4 +1,4 @@
-import type ExtensionPointRegistry from "./ExtensionPointRegistry.ts";
+import type ExtensionPointRegistry from "../../api/registry/ExtensionPointRegistry.ts";
 
 /**
  * Simple implementation of an {@link ExtensionPointRegistry} using an in-memory Set.
