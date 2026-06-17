@@ -23,13 +23,11 @@ export interface PluginLoadResult {
   error?: Error;
 }
 
-async function getLocalUrl(remoteUrl: string) {
+async function getLocalUrl(remoteUrl: string, cacheFolder: string, repoName: string) {
   const url = new URL(remoteUrl);
   const urlPath = url.pathname;
 
-  // look in local cache location
-  const localPluginFolder = path.join(os.homedir(), ".flowscripter", "plugin");
-  const localPluginPath = path.join(localPluginFolder, urlPath);
+  const localPluginPath = path.join(cacheFolder, repoName, urlPath);
   const installePluginFile = Bun.file(localPluginPath);
   const exists = await installePluginFile.exists();
 
@@ -56,7 +54,11 @@ async function getLocalUrl(remoteUrl: string) {
  *
  * @param url the URL of the module to import.
  */
-export default async function loadPlugin(url: string): Promise<Readonly<PluginLoadResult>> {
+export default async function loadPlugin(
+  url: string,
+  cacheFolder: string = path.join(os.homedir(), ".flowscripter", "plugin"),
+  repoName: string = "default",
+): Promise<Readonly<PluginLoadResult>> {
   const result: PluginLoadResult = {
     isValidPlugin: false,
     plugin: undefined,
@@ -76,7 +78,7 @@ export default async function loadPlugin(url: string): Promise<Readonly<PluginLo
       result.error = err as Error;
       return result;
     }
-    const localUrl = await getLocalUrl(url);
+    const localUrl = await getLocalUrl(url, cacheFolder, repoName);
 
     try {
       module = await import(localUrl);

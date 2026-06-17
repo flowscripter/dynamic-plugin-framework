@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import InMemoryExtensionRegistry from "../../../src/plugin_manager/registry/InMemoryExtensionRegistry.ts";
-import type ExtensionEntry from "../../../src/plugin_manager/plugin_repository/ExtensionEntry.ts";
+import type ExtensionEntry from "../../../src/api/plugin_repository/ExtensionEntry.ts";
 
 import {
   EXTENSION_1_HANDLE,

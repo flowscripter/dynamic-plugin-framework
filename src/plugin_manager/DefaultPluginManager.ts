@@ -1,10 +1,10 @@
-import type ExtensionPointRegistry from "./registry/ExtensionPointRegistry.ts";
-import type ExtensionRegistry from "./registry/ExtensionRegistry.ts";
+import type ExtensionPointRegistry from "../api/registry/ExtensionPointRegistry.ts";
+import type ExtensionRegistry from "../api/registry/ExtensionRegistry.ts";
 import InMemoryExtensionPointRegistry from "./registry/InMemoryExtensionPointRegistry.ts";
 import InMemoryExtensionRegistry from "./registry/InMemoryExtensionRegistry.ts";
 import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type ExtensionInfo from "../api/plugin_manager/ExtensionInfo.ts";
-import type PluginRepository from "./plugin_repository/PluginRepository.ts";
+import type PluginRepository from "../api/plugin_repository/PluginRepository.ts";
 
 /**
  * Default implementation of a {@link PluginManager}.

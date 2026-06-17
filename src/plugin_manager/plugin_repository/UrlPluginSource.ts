@@ -1,26 +1,40 @@
 import type Plugin from "../../api/plugin/Plugin.ts";
 import loadPlugin from "../util/PluginLoader.ts";
+import os from "node:os";
+import path from "node:path";
 
 /**
- * A source of {@link Plugin} instances sourced from URLs.
+ * Loads and caches {@link Plugin} instances from remote or local URLs.
  *
- * Any loaded URLs will be cached so that subsequent calls to {@link loadPlugin} are (possibly) lower cost.
+ * Plugins are fetched via dynamic `import()` (delegating to {@link PluginLoader}) and
+ * cached in memory by URL so repeated calls for the same URL are served without
+ * re-fetching.
  */
 export default class UrlPluginSource {
   private readonly pluginsByUrl: Map<URL, Plugin> = new Map();
+  private readonly cacheFolder: string;
 
   /**
-   * Attempt to load a {@link Plugin} object from the specified URL.
+   * @param cacheFolder Directory used to cache downloaded plugin bundles.
+   *   Defaults to `~/.flowscripter/plugin`.
+   */
+  public constructor(cacheFolder: string = path.join(os.homedir(), ".flowscripter", "plugin")) {
+    this.cacheFolder = cacheFolder;
+  }
+
+  /**
+   * Load the plugin at `url`, returning the cached instance on subsequent calls.
    *
-   * @param url the URL to load from
-   *
-   * @returns a {@link Plugin} object if successful otherwise undefined
+   * @param url URL of the plugin bundle to load.
+   * @returns The loaded {@link Plugin}, or `undefined` if the module exists but is
+   *   not a valid plugin.
+   * @throws If the module cannot be fetched or fails to load.
    */
   public async loadPlugin(url: URL): Promise<Plugin | undefined> {
     let plugin = this.pluginsByUrl.get(url);
 
     if (!plugin) {
-      const pluginLoadResult = await loadPlugin(url.toString());
+      const pluginLoadResult = await loadPlugin(url.toString(), this.cacheFolder);
       if (pluginLoadResult.isValidPlugin && pluginLoadResult.plugin !== undefined) {
         plugin = pluginLoadResult.plugin;
         this.pluginsByUrl.set(url, plugin);
