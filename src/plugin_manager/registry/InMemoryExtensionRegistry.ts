@@ -1,5 +1,5 @@
-import type ExtensionRegistry from "./ExtensionRegistry.ts";
-import type ExtensionEntry from "../plugin_repository/ExtensionEntry.ts";
+import type ExtensionRegistry from "../../api/registry/ExtensionRegistry.ts";
+import type ExtensionEntry from "../../api/plugin_repository/ExtensionEntry.ts";
 
 /**
  * Simple implementation of an {@link ExtensionRegistry} using an in-memory map.
