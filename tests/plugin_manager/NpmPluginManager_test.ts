@@ -1,20 +1,27 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import NpmPluginManager from "../../src/plugin_manager/NpmPluginManager.ts";
+import NpmPluginRepository from "../../src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
 import type SearchQuery from "../../src/api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../../src/api/plugin_repository/VersionedPluginDescriptor.ts";
 import type NpmjsPluginRepository from "../../src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
-import type NpmPluginRepository from "../../src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
-import type NpmPluginInstaller from "../../src/plugin_manager/plugin_installer/NpmPluginInstaller.ts";
-import type VersionedPluginRepository from "../../src/api/plugin_repository/VersionedPluginRepository.ts";
 import type ExtensionEntry from "../../src/api/plugin_repository/ExtensionEntry.ts";
 import type ExtensionDescriptor from "../../src/api/plugin/ExtensionDescriptor.ts";
 
-function makeDescriptor(pluginId: string, version = "1.0.0"): VersionedPluginDescriptor {
+const NAMESPACE = "mypluginframework";
+
+function makeDescriptor(
+  pluginId: string,
+  version = "1.0.0",
+  name?: string,
+): VersionedPluginDescriptor {
   return {
     pluginId,
     extensionPoints: ["ep1"],
     scope: undefined,
-    name: pluginId,
+    name: name ?? pluginId,
     version,
     dependencies: undefined,
   };
@@ -56,30 +63,17 @@ class MockLocal {
   }
 }
 
-class MockInstaller {
-  public installedWith: {
-    descriptor: VersionedPluginDescriptor;
-    source: VersionedPluginRepository;
-    target: VersionedPluginRepository;
-    options: unknown;
-  }[] = [];
+let nodeModulesDir: string;
 
-  async install(
-    descriptor: Readonly<VersionedPluginDescriptor>,
-    source: VersionedPluginRepository,
-    target: VersionedPluginRepository,
-    options?: { includeDependencies?: boolean },
-  ): Promise<void> {
-    this.installedWith.push({ descriptor: { ...descriptor }, source, target, options });
-  }
+beforeEach(async () => {
+  const base = await mkdtemp(path.join(tmpdir(), "npm-manager-test-"));
+  nodeModulesDir = path.join(base, "node_modules");
+  await mkdir(nodeModulesDir, { recursive: true });
+});
 
-  async uninstall(_pluginId: string, _target: VersionedPluginRepository): Promise<void> {}
-
-  async *checkForUpdates(
-    _local: VersionedPluginRepository,
-    _remote: VersionedPluginRepository,
-  ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {}
-}
+afterEach(async () => {
+  await rm(path.dirname(nodeModulesDir), { recursive: true, force: true });
+});
 
 describe("NpmPluginManager", () => {
   describe("search()", () => {
@@ -88,7 +82,6 @@ describe("NpmPluginManager", () => {
       const manager = new NpmPluginManager(
         [remote] as unknown as NpmjsPluginRepository[],
         new MockLocal() as unknown as NpmPluginRepository,
-        new MockInstaller() as unknown as NpmPluginInstaller,
       );
 
       const results: VersionedPluginDescriptor[] = [];
@@ -107,7 +100,6 @@ describe("NpmPluginManager", () => {
       const manager = new NpmPluginManager(
         [remote1, remote2] as unknown as NpmjsPluginRepository[],
         new MockLocal() as unknown as NpmPluginRepository,
-        new MockInstaller() as unknown as NpmPluginInstaller,
       );
 
       const results: VersionedPluginDescriptor[] = [];
@@ -123,32 +115,10 @@ describe("NpmPluginManager", () => {
   });
 
   describe("install()", () => {
-    it("delegates to installer using the remote that contains the descriptor", async () => {
-      const descriptor = makeDescriptor("plugin-a");
-      const remote1 = new MockRemote([makeDescriptor("plugin-x")]);
-      const remote2 = new MockRemote([descriptor]);
-      const local = new MockLocal();
-      const installer = new MockInstaller();
-
-      const manager = new NpmPluginManager(
-        [remote1, remote2] as unknown as NpmjsPluginRepository[],
-        local as unknown as NpmPluginRepository,
-        installer as unknown as NpmPluginInstaller,
-      );
-
-      await manager.install(descriptor);
-
-      expect(installer.installedWith.length).toEqual(1);
-      expect(installer.installedWith[0].descriptor.pluginId).toEqual("plugin-a");
-      expect(installer.installedWith[0].source).toBe(remote2);
-      expect(installer.installedWith[0].target).toBe(local);
-    });
-
     it("throws when remotes array is empty", async () => {
       const manager = new NpmPluginManager(
         [] as unknown as NpmjsPluginRepository[],
         new MockLocal() as unknown as NpmPluginRepository,
-        new MockInstaller() as unknown as NpmPluginInstaller,
       );
 
       expect(manager.install(makeDescriptor("plugin-a"))).rejects.toThrow(
@@ -157,12 +127,126 @@ describe("NpmPluginManager", () => {
     });
   });
 
+  describe("uninstall()", () => {
+    it("throws when the remove command fails", async () => {
+      await mkdir(path.join(nodeModulesDir, "my-plugin"), { recursive: true });
+      await Bun.write(
+        path.join(nodeModulesDir, "my-plugin", "package.json"),
+        JSON.stringify({
+          name: "my-plugin",
+          version: "1.0.0",
+          [NAMESPACE]: { extensionPoints: ["ep1"] },
+        }),
+      );
+
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
+
+      // bun remove in a dir without package.json will fail with non-zero exit
+      await expect(manager.uninstall("my-plugin")).rejects.toThrow();
+    });
+  });
+
+  describe("checkForUpdates()", () => {
+    it("yields entries where remote has a higher version", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "1.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        local as unknown as NpmPluginRepository,
+      );
+      const updates: { availableVersion: string }[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+
+      expect(updates.length).toEqual(1);
+      expect(updates[0].availableVersion).toEqual("2.0.0");
+    });
+
+    it("does not yield entries where local version is current", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        local as unknown as NpmPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("does not yield entries where local version is newer", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "3.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        local as unknown as NpmPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("skips plugins in local that are not in remote", async () => {
+      const local = new MockRemote([makeDescriptor("local-only", "1.0.0", "local-only")]);
+      const remote = new MockRemote([makeDescriptor("remote-only", "2.0.0", "remote-only")]);
+
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        local as unknown as NpmPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("handles multiple plugins with mixed update states", async () => {
+      const local = new MockRemote([
+        makeDescriptor("plugin-a", "1.0.0", "plugin-a"),
+        makeDescriptor("plugin-b", "2.0.0", "plugin-b"),
+      ]);
+      const remote = new MockRemote([
+        makeDescriptor("plugin-a", "1.5.0", "plugin-a"),
+        makeDescriptor("plugin-b", "1.9.9", "plugin-b"),
+      ]);
+
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        local as unknown as NpmPluginRepository,
+      );
+      const updates: { descriptor: Readonly<VersionedPluginDescriptor> }[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+
+      expect(updates.length).toEqual(1);
+      expect(updates[0].descriptor.name).toEqual("plugin-a");
+    });
+
+    it("throws when no remotes configured and no explicit remote given", async () => {
+      const manager = new NpmPluginManager(
+        [] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+      expect(() => manager.checkForUpdates()).toThrow("No remote repository configured");
+    });
+  });
+
   describe("registerExtensions() / getRegisteredExtensions()", () => {
     it("returns empty array for unregistered extension point after registerExtensions", async () => {
       const manager = new NpmPluginManager(
         [] as unknown as NpmjsPluginRepository[],
         new MockLocal() as unknown as NpmPluginRepository,
-        new MockInstaller() as unknown as NpmPluginInstaller,
       );
 
       await manager.registerExtensions("ep1");
@@ -174,7 +258,6 @@ describe("NpmPluginManager", () => {
       const manager = new NpmPluginManager(
         [] as unknown as NpmjsPluginRepository[],
         new MockLocal() as unknown as NpmPluginRepository,
-        new MockInstaller() as unknown as NpmPluginInstaller,
       );
 
       const results = await manager.getRegisteredExtensions("ep-unknown");

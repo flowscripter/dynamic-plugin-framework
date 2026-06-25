@@ -1,34 +1,32 @@
+import semver from "semver";
 import type MarketplacePluginManager from "../api/plugin_manager/MarketplacePluginManager.ts";
 import type MarketplacePluginRepository from "../api/plugin_repository/MarketplacePluginRepository.ts";
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
-import type VersionedPluginInstaller from "../api/plugin_installer/VersionedPluginInstaller.ts";
 import type ExtensionInfo from "../api/plugin_manager/ExtensionInfo.ts";
 import type SearchQuery from "../api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 import DefaultPluginManager from "./DefaultPluginManager.ts";
 
 /**
- * Generic {@link MarketplacePluginManager} implementation.
+ * Abstract {@link MarketplacePluginManager} implementation.
  *
  * Combines one or more `TRemote` repositories (for search and install source) with a `TLocal`
- * repository (for loading installed plugins) and a `TInstaller`. The standard
- * {@link PluginManager} methods delegate to an internal {@link DefaultPluginManager} backed by
- * the local repository only.
+ * repository (for loading installed plugins). The standard {@link PluginManager} methods delegate
+ * to an internal {@link DefaultPluginManager} backed by the local repository only.
  *
- * Concrete subclasses fix the type parameters for a specific ecosystem
+ * Provides a concrete {@link checkForUpdates} implementation. Subclasses must implement
+ * {@link install} and {@link uninstall} with ecosystem-specific logic
  * (e.g. {@link HttpPluginManager}, {@link NpmPluginManager}).
  */
-export default class DefaultMarketplacePluginManager<
+export default abstract class DefaultMarketplacePluginManager<
   TRemote extends MarketplacePluginRepository,
   TLocal extends VersionedPluginRepository,
-  TInstaller extends VersionedPluginInstaller,
 > implements MarketplacePluginManager {
   private readonly pluginManager: DefaultPluginManager;
 
   public constructor(
     protected readonly remotes: TRemote[],
     protected readonly local: TLocal,
-    protected readonly installer: TInstaller,
   ) {
     this.pluginManager = new DefaultPluginManager([local]);
   }
@@ -45,21 +43,45 @@ export default class DefaultMarketplacePluginManager<
     return this.searchAsyncIterable(query);
   }
 
-  public async install(
+  public abstract install(
     descriptor: Readonly<VersionedPluginDescriptor>,
     options?: { includeDependencies?: boolean },
-  ): Promise<void> {
-    for (const remote of this.remotes) {
-      for await (const d of remote.getPlugins()) {
-        if (d.pluginId === descriptor.pluginId) {
-          return this.installer.install(descriptor, remote, this.local, options);
+  ): Promise<void>;
+
+  public abstract uninstall(pluginId: string): Promise<void>;
+
+  private async *checkForUpdatesIterable(
+    remote: VersionedPluginRepository,
+  ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {
+    const remotePlugins: VersionedPluginDescriptor[] = [];
+    for await (const p of remote.getPlugins()) {
+      remotePlugins.push({ ...p });
+    }
+
+    for await (const localPlugin of this.local.getPlugins()) {
+      const localId = localPlugin.scope
+        ? `${localPlugin.scope}/${localPlugin.name}`
+        : localPlugin.name;
+      for (const remotePlugin of remotePlugins) {
+        const remoteId = remotePlugin.scope
+          ? `${remotePlugin.scope}/${remotePlugin.name}`
+          : remotePlugin.name;
+        if (remoteId === localId && semver.gt(remotePlugin.version, localPlugin.version)) {
+          yield { descriptor: remotePlugin, availableVersion: remotePlugin.version };
+          break;
         }
       }
     }
-    if (this.remotes.length > 0) {
-      return this.installer.install(descriptor, this.remotes[0], this.local, options);
+  }
+
+  public checkForUpdates(
+    remote?: VersionedPluginRepository,
+  ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {
+    const r = remote ?? this.remotes[0];
+    if (!r) {
+      throw new Error("No remote repository configured");
     }
-    throw new Error(`Plugin ${descriptor.pluginId} not found in any configured remote repository`);
+    return this.checkForUpdatesIterable(r);
   }
 
   public registerExtensions(extensionPoint: string): Promise<void> {

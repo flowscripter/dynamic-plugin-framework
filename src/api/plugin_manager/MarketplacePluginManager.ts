@@ -1,14 +1,16 @@
 import type PluginManager from "./PluginManager.ts";
 import type SearchQuery from "../plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../plugin_repository/VersionedPluginDescriptor.ts";
+import type VersionedPluginRepository from "../plugin_repository/VersionedPluginRepository.ts";
 
 /**
- * Extends {@link PluginManager} with marketplace-level search and install capabilities.
+ * Extends {@link PluginManager} with marketplace-level search, install, uninstall, and update
+ * checking capabilities.
  *
  * A `MarketplacePluginManager` combines one or more remote {@link MarketplacePluginRepository}
- * instances (for discovery) with a local {@link VersionedPluginRepository} (for loading) and a
- * {@link VersionedPluginInstaller} (for installation). The standard {@link PluginManager} methods
- * delegate to an internal {@link DefaultPluginManager} backed by the local repository.
+ * instances (for discovery) with a local {@link VersionedPluginRepository} (for loading and
+ * installation). The standard {@link PluginManager} methods delegate to an internal
+ * {@link DefaultPluginManager} backed by the local repository.
  */
 export default interface MarketplacePluginManager extends PluginManager {
   /**
@@ -30,4 +32,27 @@ export default interface MarketplacePluginManager extends PluginManager {
     descriptor: Readonly<VersionedPluginDescriptor>,
     options?: { includeDependencies?: boolean },
   ): Promise<void>;
+
+  /**
+   * Remove a plugin from the local repository.
+   *
+   * Throws if another installed plugin declares a dependency on the plugin being removed.
+   *
+   * @param pluginId the ID of the plugin to remove.
+   */
+  uninstall(pluginId: string): Promise<void>;
+
+  /**
+   * Compare the local repository against a remote repository and yield entries where a newer
+   * version is available remotely.
+   *
+   * @param remote the remote {@link VersionedPluginRepository} to compare against. Defaults to
+   *   the first configured remote.
+   *
+   * @return an async iterable of objects pairing the remote {@link VersionedPluginDescriptor}
+   *   with the available version string.
+   */
+  checkForUpdates(
+    remote?: VersionedPluginRepository,
+  ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }>;
 }

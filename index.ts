@@ -15,7 +15,6 @@ export type { default as MarketplacePluginRepository } from "./src/api/plugin_re
 export type { default as ExtensionRegistry } from "./src/api/registry/ExtensionRegistry.ts";
 export type { default as ExtensionPointRegistry } from "./src/api/registry/ExtensionPointRegistry.ts";
 export type { default as PluginInstaller } from "./src/api/plugin_installer/PluginInstaller.ts";
-export type { default as VersionedPluginInstaller } from "./src/api/plugin_installer/VersionedPluginInstaller.ts";
 export { default as DefaultPluginManager } from "./src/plugin_manager/DefaultPluginManager.ts";
 export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_repository/UrlListPluginRepository.ts";
 export { default as LocalFolderPluginRepository } from "./src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";
@@ -23,8 +22,6 @@ export { default as HttpManifestPluginRepository } from "./src/plugin_manager/pl
 export { default as NpmPluginRepository } from "./src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
 export { default as NpmjsPluginRepository } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
 export type { NpmSearchQuery } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
-export { default as HttpPluginInstaller } from "./src/plugin_manager/plugin_installer/HttpPluginInstaller.ts";
-export { default as NpmPluginInstaller } from "./src/plugin_manager/plugin_installer/NpmPluginInstaller.ts";
 export type { default as MarketplacePluginManager } from "./src/api/plugin_manager/MarketplacePluginManager.ts";
 export { default as DefaultMarketplacePluginManager } from "./src/plugin_manager/DefaultMarketplacePluginManager.ts";
 export { default as NpmPluginManager } from "./src/plugin_manager/NpmPluginManager.ts";

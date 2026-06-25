@@ -22,8 +22,8 @@ the full API including concrete implementations. For example:
 import {
   DefaultPluginManager,
   NpmjsPluginRepository,
-  NpmPluginInstaller,
   NpmPluginRepository,
+  NpmPluginManager,
 } from "@flowscripter/dynamic-plugin-framework";
 import type { ExtensionInfo, PluginManager } from "@flowscripter/dynamic-plugin-framework";
 ```
@@ -163,7 +163,7 @@ classDiagram
 
 ## PluginInstaller API
 
-`PluginInstaller` provides the base install/uninstall contract. `VersionedPluginInstaller` extends it with dependency-aware install, a dependent-safety guard on uninstall, and update checking:
+`PluginInstaller` provides the base install/uninstall contract for transferring plugins between repositories:
 
 ```mermaid
 classDiagram
@@ -172,33 +172,11 @@ classDiagram
         install(descriptor, source, target) void
         uninstall(pluginId, target) void
     }
-
-    class VersionedPluginInstaller {
-        <<interface>>
-        install(descriptor, source, target, options?) void
-        uninstall(pluginId, target) void
-        checkForUpdates(local, remote) AsyncIterable~UpdateInfo~
-    }
-
-    class HttpPluginInstaller {
-        install: fetches bundle, writes to LocalFolderPluginRepository
-        uninstall: removes bundle and manifest entry
-    }
-
-    class NpmPluginInstaller {
-        constructor(installCommand?)
-        install: shells out to bun add / npm install
-        uninstall: shells out to bun remove
-    }
-
-    PluginInstaller <|-- VersionedPluginInstaller
-    VersionedPluginInstaller <|.. HttpPluginInstaller
-    VersionedPluginInstaller <|.. NpmPluginInstaller
 ```
 
 ## PluginManager API
 
-`DefaultPluginManager` handles standard plugin discovery and instantiation. `MarketplacePluginManager` extends the `PluginManager` API with search and install, delegating standard manager methods to an internal `DefaultPluginManager` backed by the local repository:
+`DefaultPluginManager` handles standard plugin discovery and instantiation. `MarketplacePluginManager` extends the `PluginManager` API with search, install, uninstall, and update checking, delegating standard manager methods to an internal `DefaultPluginManager` backed by the local repository:
 
 ```mermaid
 classDiagram
@@ -213,24 +191,37 @@ classDiagram
         <<interface>>
         search(query) AsyncIterable~VersionedPluginDescriptor~
         install(descriptor, options?) void
+        uninstall(pluginId) void
+        checkForUpdates(remote?) AsyncIterable~UpdateInfo~
     }
 
     class DefaultPluginManager {
         constructor(repos, extensionPointRegistry?, extensionRegistry?)
     }
 
+    class DefaultMarketplacePluginManager {
+        <<abstract>>
+        constructor(remotes[], local)
+        checkForUpdates(remote?) AsyncIterable~UpdateInfo~
+    }
+
     class NpmPluginManager {
-        constructor(remotes[], local, installer)
+        constructor(remotes[], local, opts?)
+        install: shells out to bun add / npm install
+        uninstall: shells out to bun remove
     }
 
     class HttpPluginManager {
-        constructor(remotes[], local, installer)
+        constructor(remotes[], local)
+        install: fetches bundle, writes to LocalFolderPluginRepository
+        uninstall: removes bundle and manifest entry
     }
 
     PluginManager <|.. DefaultPluginManager
     PluginManager <|-- MarketplacePluginManager
-    MarketplacePluginManager <|.. NpmPluginManager
-    MarketplacePluginManager <|.. HttpPluginManager
+    MarketplacePluginManager <|.. DefaultMarketplacePluginManager
+    DefaultMarketplacePluginManager <|-- NpmPluginManager
+    DefaultMarketplacePluginManager <|-- HttpPluginManager
     NpmPluginManager --> DefaultPluginManager : delegates PluginManager methods
     HttpPluginManager --> DefaultPluginManager : delegates PluginManager methods
 ```
@@ -277,10 +268,9 @@ sequenceDiagram
     participant HostApp
     participant NPMRepo as NpmjsPluginRepository
     participant Manager as NpmPluginManager
-    participant Installer as NpmPluginInstaller
     participant LocalRepo as NpmPluginRepository
 
-    HostApp->>Manager: new NpmPluginManager([npmjsRepo], localRepo, installer)
+    HostApp->>Manager: new NpmPluginManager([npmjsRepo], localRepo)
     HostApp->>Manager: search({ text: "my-plugin" })
     activate Manager
     Manager->>NPMRepo: search({ text: "my-plugin" })
@@ -289,8 +279,7 @@ sequenceDiagram
     deactivate Manager
     HostApp->>Manager: install(descriptor, { includeDependencies: true })
     activate Manager
-    Manager->>Installer: install(descriptor, npmjsRepo, localRepo, options)
-    Installer->>Installer: bun add <package>
+    Manager->>Manager: bun add <package>
     deactivate Manager
     HostApp->>Manager: registerExtensions(EXTENSION_POINT)
     activate Manager
@@ -301,8 +290,8 @@ sequenceDiagram
     Manager-->>HostApp: ExtensionInfo[]
     HostApp->>Manager: instantiate(extensionHandle)
     activate Manager
-    Manager->>Repo: getExtensionDescriptorFromExtensionEntry(entry)
-    Repo-->>Manager: ExtensionDescriptor
+    Manager->>LocalRepo: getExtensionDescriptorFromExtensionEntry(entry)
+    LocalRepo-->>Manager: ExtensionDescriptor
     Manager->>Manager: factory.create()
     Manager-->>HostApp: Extension instance
     deactivate Manager
