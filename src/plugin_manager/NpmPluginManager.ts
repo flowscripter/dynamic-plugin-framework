@@ -1,19 +1,19 @@
 import path from "node:path";
 import semver from "semver";
-import DefaultMarketplacePluginManager from "./DefaultMarketplacePluginManager.ts";
+import BaseMarketplacePluginManager from "./BaseMarketplacePluginManager.ts";
 import type NpmjsPluginRepository from "./plugin_repository/NpmjsPluginRepository.ts";
 import type NpmPluginRepository from "./plugin_repository/NpmPluginRepository.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
 
 /**
- * {@link DefaultMarketplacePluginManager} for the npm ecosystem.
+ * {@link BaseMarketplacePluginManager} for the npm ecosystem.
  *
  * Combines one or more {@link NpmjsPluginRepository} remotes with a local
  * {@link NpmPluginRepository} (backed by `node_modules`). Plugins are installed and
  * removed by shelling out to bun/npm.
  */
-export default class NpmPluginManager extends DefaultMarketplacePluginManager<
+export default class NpmPluginManager extends BaseMarketplacePluginManager<
   NpmjsPluginRepository,
   NpmPluginRepository
 > {

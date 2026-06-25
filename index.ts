@@ -23,6 +23,6 @@ export { default as NpmPluginRepository } from "./src/plugin_manager/plugin_repo
 export { default as NpmjsPluginRepository } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
 export type { NpmSearchQuery } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
 export type { default as MarketplacePluginManager } from "./src/api/plugin_manager/MarketplacePluginManager.ts";
-export { default as DefaultMarketplacePluginManager } from "./src/plugin_manager/DefaultMarketplacePluginManager.ts";
+export { default as BaseMarketplacePluginManager } from "./src/plugin_manager/BaseMarketplacePluginManager.ts";
 export { default as NpmPluginManager } from "./src/plugin_manager/NpmPluginManager.ts";
 export { default as HttpPluginManager } from "./src/plugin_manager/HttpPluginManager.ts";

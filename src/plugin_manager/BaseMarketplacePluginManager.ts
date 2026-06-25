@@ -18,7 +18,7 @@ import DefaultPluginManager from "./DefaultPluginManager.ts";
  * {@link install} and {@link uninstall} with ecosystem-specific logic
  * (e.g. {@link HttpPluginManager}, {@link NpmPluginManager}).
  */
-export default abstract class DefaultMarketplacePluginManager<
+export default abstract class BaseMarketplacePluginManager<
   TRemote extends MarketplacePluginRepository,
   TLocal extends VersionedPluginRepository,
 > implements MarketplacePluginManager {

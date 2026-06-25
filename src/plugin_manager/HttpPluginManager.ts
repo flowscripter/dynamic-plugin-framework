@@ -1,19 +1,19 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import semver from "semver";
-import DefaultMarketplacePluginManager from "./DefaultMarketplacePluginManager.ts";
+import BaseMarketplacePluginManager from "./BaseMarketplacePluginManager.ts";
 import type HttpManifestPluginRepository from "./plugin_repository/HttpManifestPluginRepository.ts";
 import type LocalFolderPluginRepository from "./plugin_repository/LocalFolderPluginRepository.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 
 /**
- * {@link DefaultMarketplacePluginManager} for HTTP manifest-backed marketplaces.
+ * {@link BaseMarketplacePluginManager} for HTTP manifest-backed marketplaces.
  *
  * Combines one or more {@link HttpManifestPluginRepository} remotes with a local
  * {@link LocalFolderPluginRepository}. Plugins are installed by fetching their bundle
  * via HTTP and persisting a manifest entry.
  */
-export default class HttpPluginManager extends DefaultMarketplacePluginManager<
+export default class HttpPluginManager extends BaseMarketplacePluginManager<
   HttpManifestPluginRepository,
   LocalFolderPluginRepository
 > {
