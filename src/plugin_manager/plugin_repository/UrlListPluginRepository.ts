@@ -117,7 +117,7 @@ export default class UrlListPluginRepository implements PluginRepository {
 
     try {
       extensionId = parseInt(extensionEntry.extensionId);
-    } catch (_e) {
+    } catch {
       return Promise.reject(`Extension ID ${extensionEntry.extensionId} is unknown`);
     }
 
