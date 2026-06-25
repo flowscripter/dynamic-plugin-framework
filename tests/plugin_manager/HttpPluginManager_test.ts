@@ -1,20 +1,27 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import HttpPluginManager from "../../src/plugin_manager/HttpPluginManager.ts";
+import LocalFolderPluginRepository from "../../src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";
 import type SearchQuery from "../../src/api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../../src/api/plugin_repository/VersionedPluginDescriptor.ts";
 import type HttpManifestPluginRepository from "../../src/plugin_manager/plugin_repository/HttpManifestPluginRepository.ts";
-import type LocalFolderPluginRepository from "../../src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";
-import type HttpPluginInstaller from "../../src/plugin_manager/plugin_installer/HttpPluginInstaller.ts";
-import type VersionedPluginRepository from "../../src/api/plugin_repository/VersionedPluginRepository.ts";
 import type ExtensionEntry from "../../src/api/plugin_repository/ExtensionEntry.ts";
 import type ExtensionDescriptor from "../../src/api/plugin/ExtensionDescriptor.ts";
 
-function makeDescriptor(pluginId: string, version = "1.0.0"): VersionedPluginDescriptor {
+const MANIFEST_FILE = "manifest.json";
+
+function makeDescriptor(
+  pluginId: string,
+  version = "1.0.0",
+  name?: string,
+): VersionedPluginDescriptor {
   return {
     pluginId,
     extensionPoints: ["ep1"],
     scope: undefined,
-    name: pluginId,
+    name: name ?? pluginId,
     version,
     dependencies: undefined,
   };
@@ -56,30 +63,15 @@ class MockLocal {
   }
 }
 
-class MockInstaller {
-  public installedWith: {
-    descriptor: VersionedPluginDescriptor;
-    source: VersionedPluginRepository;
-    target: VersionedPluginRepository;
-    options: unknown;
-  }[] = [];
+let tmpDir: string;
 
-  async install(
-    descriptor: Readonly<VersionedPluginDescriptor>,
-    source: VersionedPluginRepository,
-    target: VersionedPluginRepository,
-    options?: { includeDependencies?: boolean },
-  ): Promise<void> {
-    this.installedWith.push({ descriptor: { ...descriptor }, source, target, options });
-  }
+beforeEach(async () => {
+  tmpDir = await mkdtemp(path.join(tmpdir(), "http-manager-test-"));
+});
 
-  async uninstall(_pluginId: string, _target: VersionedPluginRepository): Promise<void> {}
-
-  async *checkForUpdates(
-    _local: VersionedPluginRepository,
-    _remote: VersionedPluginRepository,
-  ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {}
-}
+afterEach(async () => {
+  await rm(tmpDir, { recursive: true, force: true });
+});
 
 describe("HttpPluginManager", () => {
   describe("search()", () => {
@@ -88,7 +80,6 @@ describe("HttpPluginManager", () => {
       const manager = new HttpPluginManager(
         [remote] as unknown as HttpManifestPluginRepository[],
         new MockLocal() as unknown as LocalFolderPluginRepository,
-        new MockInstaller() as unknown as HttpPluginInstaller,
       );
 
       const results: VersionedPluginDescriptor[] = [];
@@ -107,7 +98,6 @@ describe("HttpPluginManager", () => {
       const manager = new HttpPluginManager(
         [remote1, remote2] as unknown as HttpManifestPluginRepository[],
         new MockLocal() as unknown as LocalFolderPluginRepository,
-        new MockInstaller() as unknown as HttpPluginInstaller,
       );
 
       const results: VersionedPluginDescriptor[] = [];
@@ -123,32 +113,10 @@ describe("HttpPluginManager", () => {
   });
 
   describe("install()", () => {
-    it("delegates to installer using the remote that contains the descriptor", async () => {
-      const descriptor = makeDescriptor("plugin-a");
-      const remote1 = new MockRemote([makeDescriptor("plugin-x")]);
-      const remote2 = new MockRemote([descriptor]);
-      const local = new MockLocal();
-      const installer = new MockInstaller();
-
-      const manager = new HttpPluginManager(
-        [remote1, remote2] as unknown as HttpManifestPluginRepository[],
-        local as unknown as LocalFolderPluginRepository,
-        installer as unknown as HttpPluginInstaller,
-      );
-
-      await manager.install(descriptor);
-
-      expect(installer.installedWith.length).toEqual(1);
-      expect(installer.installedWith[0].descriptor.pluginId).toEqual("plugin-a");
-      expect(installer.installedWith[0].source).toBe(remote2);
-      expect(installer.installedWith[0].target).toBe(local);
-    });
-
     it("throws when remotes array is empty", async () => {
       const manager = new HttpPluginManager(
         [] as unknown as HttpManifestPluginRepository[],
         new MockLocal() as unknown as LocalFolderPluginRepository,
-        new MockInstaller() as unknown as HttpPluginInstaller,
       );
 
       expect(manager.install(makeDescriptor("plugin-a"))).rejects.toThrow(
@@ -157,12 +125,145 @@ describe("HttpPluginManager", () => {
     });
   });
 
+  describe("uninstall()", () => {
+    it("throws when another plugin depends on the target plugin", async () => {
+      const manifest = [
+        {
+          pluginId: "plugin-a",
+          bundlePath: "/some/path/a.js",
+          extensionPoints: ["ep1"],
+          name: "plugin-a",
+          version: "1.0.0",
+          dependencies: [{ name: "plugin-b", versionRange: "^1.0.0" }],
+        },
+        {
+          pluginId: "plugin-b",
+          bundlePath: "/some/path/b.js",
+          extensionPoints: ["ep1"],
+          name: "plugin-b",
+          version: "1.0.0",
+        },
+      ];
+      await Bun.write(path.join(tmpDir, MANIFEST_FILE), JSON.stringify(manifest));
+
+      const repo = new LocalFolderPluginRepository(tmpDir, MANIFEST_FILE);
+      const manager = new HttpPluginManager([] as unknown as HttpManifestPluginRepository[], repo);
+
+      await expect(manager.uninstall("plugin-b")).rejects.toThrow("plugin-a");
+    });
+
+    it("throws when plugin is not installed", async () => {
+      await Bun.write(path.join(tmpDir, MANIFEST_FILE), JSON.stringify([]));
+
+      const repo = new LocalFolderPluginRepository(tmpDir, MANIFEST_FILE);
+      const manager = new HttpPluginManager([] as unknown as HttpManifestPluginRepository[], repo);
+
+      await expect(manager.uninstall("not-installed")).rejects.toThrow("not installed");
+    });
+  });
+
+  describe("checkForUpdates()", () => {
+    it("yields entries where remote has a higher version", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "1.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new HttpPluginManager(
+        [remote] as unknown as HttpManifestPluginRepository[],
+        local as unknown as LocalFolderPluginRepository,
+      );
+      const updates: { availableVersion: string }[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+
+      expect(updates.length).toEqual(1);
+      expect(updates[0].availableVersion).toEqual("2.0.0");
+    });
+
+    it("does not yield entries where local version is current", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new HttpPluginManager(
+        [remote] as unknown as HttpManifestPluginRepository[],
+        local as unknown as LocalFolderPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("does not yield entries where local version is newer", async () => {
+      const local = new MockRemote([makeDescriptor("my-plugin", "3.0.0", "my-plugin")]);
+      const remote = new MockRemote([makeDescriptor("my-plugin", "2.0.0", "my-plugin")]);
+
+      const manager = new HttpPluginManager(
+        [remote] as unknown as HttpManifestPluginRepository[],
+        local as unknown as LocalFolderPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("skips plugins in local that are not in remote", async () => {
+      const local = new MockRemote([makeDescriptor("local-only", "1.0.0", "local-only")]);
+      const remote = new MockRemote([makeDescriptor("remote-only", "2.0.0", "remote-only")]);
+
+      const manager = new HttpPluginManager(
+        [remote] as unknown as HttpManifestPluginRepository[],
+        local as unknown as LocalFolderPluginRepository,
+      );
+      const updates: unknown[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+      expect(updates.length).toEqual(0);
+    });
+
+    it("handles multiple plugins with mixed update states", async () => {
+      const local = new MockRemote([
+        makeDescriptor("plugin-a", "1.0.0", "plugin-a"),
+        makeDescriptor("plugin-b", "2.0.0", "plugin-b"),
+        makeDescriptor("plugin-c", "3.0.0", "plugin-c"),
+      ]);
+      const remote = new MockRemote([
+        makeDescriptor("plugin-a", "1.5.0", "plugin-a"),
+        makeDescriptor("plugin-b", "2.0.0", "plugin-b"),
+        makeDescriptor("plugin-c", "2.9.9", "plugin-c"),
+      ]);
+
+      const manager = new HttpPluginManager(
+        [remote] as unknown as HttpManifestPluginRepository[],
+        local as unknown as LocalFolderPluginRepository,
+      );
+      const updates: { descriptor: Readonly<VersionedPluginDescriptor> }[] = [];
+      for await (const u of manager.checkForUpdates()) {
+        updates.push(u);
+      }
+
+      expect(updates.length).toEqual(1);
+      expect(updates[0].descriptor.name).toEqual("plugin-a");
+    });
+
+    it("throws when no remotes configured and no explicit remote given", async () => {
+      const manager = new HttpPluginManager(
+        [] as unknown as HttpManifestPluginRepository[],
+        new MockLocal() as unknown as LocalFolderPluginRepository,
+      );
+      expect(() => manager.checkForUpdates()).toThrow("No remote repository configured");
+    });
+  });
+
   describe("registerExtensions() / getRegisteredExtensions()", () => {
     it("returns empty array for unregistered extension point after registerExtensions", async () => {
       const manager = new HttpPluginManager(
         [] as unknown as HttpManifestPluginRepository[],
         new MockLocal() as unknown as LocalFolderPluginRepository,
-        new MockInstaller() as unknown as HttpPluginInstaller,
       );
 
       await manager.registerExtensions("ep1");
@@ -174,7 +275,6 @@ describe("HttpPluginManager", () => {
       const manager = new HttpPluginManager(
         [] as unknown as HttpManifestPluginRepository[],
         new MockLocal() as unknown as LocalFolderPluginRepository,
-        new MockInstaller() as unknown as HttpPluginInstaller,
       );
 
       const results = await manager.getRegisteredExtensions("ep-unknown");
