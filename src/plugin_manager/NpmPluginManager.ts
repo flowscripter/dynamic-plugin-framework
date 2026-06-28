@@ -26,6 +26,12 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
   ) {
     super(remotes, local);
     this.installCommand = installCommand;
+    const binary = installCommand.split(" ")[0]!;
+    if (!Bun.which(binary)) {
+      throw new Error(
+        `Install command binary '${binary}' not found on PATH; cannot install plugins`,
+      );
+    }
   }
 
   private async runCommand(args: string[], cwd: string): Promise<void> {
@@ -56,7 +62,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
           `Plugin ${descriptor.pluginId} not found in any configured remote repository`,
         );
       }
-      source = this.remotes[0];
+      source = this.remotes[0]!;
     }
     await this.installOne(descriptor, source, this.local, options?.includeDependencies ?? false);
   }

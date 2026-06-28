@@ -79,7 +79,7 @@ export default class UrlListPluginRepository implements PluginRepository {
         // filter Extensions in each Plugin by specified Extension Point
         // and map any matches to an Extension Entry
         for (let i = 0; i < plugin.extensionDescriptors.length; i++) {
-          const extensionDescripter = plugin.extensionDescriptors[i];
+          const extensionDescripter = plugin.extensionDescriptors[i]!;
           if (extensionDescripter.extensionPoint !== extensionPoint) {
             continue;
           }
@@ -125,6 +125,6 @@ export default class UrlListPluginRepository implements PluginRepository {
       return Promise.reject(`Extension ID ${extensionEntry.extensionId} is unknown`);
     }
 
-    return Promise.resolve(plugin.extensionDescriptors[extensionId]);
+    return Promise.resolve(plugin.extensionDescriptors[extensionId]!);
   }
 }

@@ -123,7 +123,7 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
         continue;
       }
       for (let i = 0; i < result.plugin.extensionDescriptors.length; i++) {
-        const ed = result.plugin.extensionDescriptors[i];
+        const ed = result.plugin.extensionDescriptors[i]!;
         if (ed.extensionPoint !== extensionPoint) {
           continue;
         }
@@ -157,6 +157,6 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
     ) {
       return Promise.reject(new Error(`Extension ID ${extensionEntry.extensionId} is unknown`));
     }
-    return result.plugin.extensionDescriptors[extensionId];
+    return result.plugin.extensionDescriptors[extensionId]!;
   }
 }

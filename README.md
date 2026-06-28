@@ -35,6 +35,7 @@ terminal and a browser:
 - [Plugin](https://github.com/flowscripter/example-plugin)
 - [Host Application](https://github.com/flowscripter/example-host-application)
 - [Host Webapp](https://github.com/flowscripter/example-host-webapp)
+- [Dynamic CLI Framework](https://github.com/flowscripter/dynamic-cli-framework)
 
 ## Further Details
 
