@@ -37,7 +37,7 @@ export default class HttpPluginManager extends BaseMarketplacePluginManager<
           `Plugin ${descriptor.pluginId} not found in any configured remote repository`,
         );
       }
-      source = this.remotes[0];
+      source = this.remotes[0]!;
     }
     await this.installOne(descriptor, source, this.local, options?.includeDependencies ?? false);
   }

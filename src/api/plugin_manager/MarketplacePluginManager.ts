@@ -43,6 +43,13 @@ export default interface MarketplacePluginManager extends PluginManager {
   uninstall(pluginId: string): Promise<void>;
 
   /**
+   * List all plugins currently installed in the local repository.
+   *
+   * @return an async iterable of {@link VersionedPluginDescriptor} instances for all locally installed plugins.
+   */
+  listInstalled(): AsyncIterable<Readonly<VersionedPluginDescriptor>>;
+
+  /**
    * Compare the local repository against a remote repository and yield entries where a newer
    * version is available remotely.
    *

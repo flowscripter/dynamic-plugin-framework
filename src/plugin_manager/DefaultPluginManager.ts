@@ -41,7 +41,7 @@ export default class DefaultPluginManager implements PluginManager {
     await this.extensionPointRegistry.register(extensionPoint);
 
     for (let i = 0; i < this.pluginRepositories.length; i++) {
-      const pluginRepository = this.pluginRepositories[i];
+      const pluginRepository = this.pluginRepositories[i]!;
       for await (const extensionEntry of pluginRepository.scanForExtensions(extensionPoint)) {
         const extensionHandle = `${i}:${extensionEntry.pluginId}:${extensionEntry.extensionId}`;
 

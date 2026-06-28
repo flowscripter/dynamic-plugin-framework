@@ -81,7 +81,7 @@ export default class LocalFolderPluginRepository implements VersionedPluginRepos
         continue;
       }
       for (let i = 0; i < result.plugin.extensionDescriptors.length; i++) {
-        const ed = result.plugin.extensionDescriptors[i];
+        const ed = result.plugin.extensionDescriptors[i]!;
         if (ed.extensionPoint !== extensionPoint) {
           continue;
         }
@@ -120,6 +120,6 @@ export default class LocalFolderPluginRepository implements VersionedPluginRepos
     ) {
       return Promise.reject(new Error(`Extension ID ${extensionEntry.extensionId} is unknown`));
     }
-    return result.plugin.extensionDescriptors[extensionId];
+    return result.plugin.extensionDescriptors[extensionId]!;
   }
 }

@@ -74,6 +74,10 @@ export default abstract class BaseMarketplacePluginManager<
     }
   }
 
+  public listInstalled(): AsyncIterable<Readonly<VersionedPluginDescriptor>> {
+    return this.local.getPlugins();
+  }
+
   public checkForUpdates(
     remote?: VersionedPluginRepository,
   ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {
