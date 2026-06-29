@@ -15,14 +15,35 @@
     "type": "git",
     "url": "git+https://github.com/flowscripter/dynamic-plugin-framework.git"
   },
+  "files": [
+    "dist",
+    "src",
+    "index.ts",
+    "plugin.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
-  "module": "index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./index.ts",
-    "./plugin": "./plugin.ts"
+    ".": {
+      "bun": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "bun": "./plugin.ts",
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    }
   },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "build": "bun build index.ts plugin.ts --outdir dist --target node && tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "semver": "^7.8.5"
