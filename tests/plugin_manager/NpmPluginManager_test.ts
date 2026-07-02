@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -9,6 +9,8 @@ import type VersionedPluginDescriptor from "../../src/api/plugin_repository/Vers
 import type NpmjsPluginRepository from "../../src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
 import type ExtensionEntry from "../../src/api/plugin_repository/ExtensionEntry.ts";
 import type ExtensionDescriptor from "../../src/api/plugin/ExtensionDescriptor.ts";
+import type PluginManager from "../../src/api/plugin_manager/PluginManager.ts";
+import type ExtensionInfo from "../../src/api/plugin_manager/ExtensionInfo.ts";
 
 const NAMESPACE = "mypluginframework";
 
@@ -36,6 +38,12 @@ class MockRemote {
 
   async *getPlugins(): AsyncIterable<Readonly<VersionedPluginDescriptor>> {
     yield* this.descriptors;
+  }
+
+  async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+    return this.descriptors.find(
+      (d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId,
+    );
   }
 
   scanForExtensions(_ep: string): AsyncIterable<Readonly<ExtensionEntry>> {
@@ -262,6 +270,115 @@ describe("NpmPluginManager", () => {
 
       const results = await manager.getRegisteredExtensions("ep-unknown");
       expect(results.length).toEqual(0);
+    });
+  });
+
+  describe("pluginManager injection", () => {
+    class MockPluginManager implements PluginManager {
+      public registerExtensionsCalls: string[] = [];
+      public instantiateCalls: string[] = [];
+
+      registerExtensions(extensionPoint: string): Promise<void> {
+        this.registerExtensionsCalls.push(extensionPoint);
+        return Promise.resolve();
+      }
+
+      getRegisteredExtensions(_extensionPoint: string): Promise<ReadonlyArray<ExtensionInfo>> {
+        return Promise.resolve([{ extensionHandle: "mock-handle", pluginData: undefined }]);
+      }
+
+      instantiate(extensionHandle: string, _hostData?: Map<string, string>): Promise<unknown> {
+        this.instantiateCalls.push(extensionHandle);
+        return Promise.resolve("mock-instance");
+      }
+    }
+
+    it("delegates to an injected PluginManager instead of DefaultPluginManager", async () => {
+      const mockPluginManager = new MockPluginManager();
+      const manager = new NpmPluginManager(
+        [] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+        { pluginManager: mockPluginManager },
+      );
+
+      await manager.registerExtensions("ep1");
+      expect(mockPluginManager.registerExtensionsCalls).toEqual(["ep1"]);
+
+      const results = await manager.getRegisteredExtensions("ep1");
+      expect(results.length).toEqual(1);
+      expect(results[0].extensionHandle).toEqual("mock-handle");
+
+      const instance = await manager.instantiate("mock-handle");
+      expect(instance).toEqual("mock-instance");
+      expect(mockPluginManager.instantiateCalls).toEqual(["mock-handle"]);
+    });
+  });
+
+  describe("install command resolution", () => {
+    afterEach(() => {
+      spyOn(Bun, "which").mockRestore();
+    });
+
+    it("defaults to 'bun add' when bun is on PATH", () => {
+      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "bun" ? "/usr/bin/bun" : null));
+
+      expect(
+        () =>
+          new NpmPluginManager(
+            [] as unknown as NpmjsPluginRepository[],
+            new MockLocal() as unknown as NpmPluginRepository,
+          ),
+      ).not.toThrow();
+    });
+
+    it("falls back to 'npm install' when bun is not on PATH but npm is", () => {
+      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
+
+      expect(
+        () =>
+          new NpmPluginManager(
+            [] as unknown as NpmjsPluginRepository[],
+            new MockLocal() as unknown as NpmPluginRepository,
+          ),
+      ).not.toThrow();
+    });
+
+    it("throws when neither bun nor npm is on PATH and no installCommand is given", () => {
+      spyOn(Bun, "which").mockImplementation(() => null);
+
+      expect(
+        () =>
+          new NpmPluginManager(
+            [] as unknown as NpmjsPluginRepository[],
+            new MockLocal() as unknown as NpmPluginRepository,
+          ),
+      ).toThrow("Neither 'bun' nor 'npm' found on PATH");
+    });
+
+    it("uses an explicit installCommand even when its binary would not be the auto-detected default", () => {
+      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
+
+      expect(
+        () =>
+          new NpmPluginManager(
+            [] as unknown as NpmjsPluginRepository[],
+            new MockLocal() as unknown as NpmPluginRepository,
+            { installCommand: "npm install" },
+          ),
+      ).not.toThrow();
+    });
+
+    it("throws when an explicit installCommand's binary is not on PATH", () => {
+      spyOn(Bun, "which").mockImplementation(() => null);
+
+      expect(
+        () =>
+          new NpmPluginManager(
+            [] as unknown as NpmjsPluginRepository[],
+            new MockLocal() as unknown as NpmPluginRepository,
+            { installCommand: "yarn add" },
+          ),
+      ).toThrow("Install command binary 'yarn' not found on PATH");
     });
   });
 });

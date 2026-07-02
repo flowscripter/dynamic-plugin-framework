@@ -117,7 +117,7 @@ describe("NpmjsPluginRepository Tests", () => {
       expect(results.length).toEqual(1);
       expect(results[0].pluginId).toEqual("@myscope/scoped-plugin");
       expect(results[0].name).toEqual("scoped-plugin");
-      expect(results[0].scope).toEqual("@myscope");
+      expect(results[0].scope).toEqual("myscope");
     });
 
     it("appends extra keywords to the search query", async () => {
@@ -140,6 +140,95 @@ describe("NpmjsPluginRepository Tests", () => {
       for await (const _d of repo.search(q)) {
         // consume
       }
+    });
+  });
+
+  describe("getPlugin()", () => {
+    it("returns the descriptor for a package with the namespace keyword", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "my-plugin",
+              version: "1.2.3",
+              keywords: [NAMESPACE],
+              [NAMESPACE]: { extensionPoints: ["ep1"] },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ) as unknown as typeof fetch;
+
+      const result = await repo.getPlugin("my-plugin");
+      expect(result).toBeDefined();
+      expect(result!.pluginId).toEqual("my-plugin");
+      expect(result!.version).toEqual("1.2.3");
+      expect(result!.extensionPoints).toEqual(["ep1"]);
+    });
+
+    it("returns undefined when the package does not have the namespace keyword", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ name: "unrelated", version: "1.0.0", keywords: ["something-else"] }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ) as unknown as typeof fetch;
+
+      expect(await repo.getPlugin("unrelated")).toBeUndefined();
+    });
+
+    it("returns undefined when the registry fetch fails", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(new Response("not found", { status: 404 })),
+      ) as unknown as typeof fetch;
+
+      expect(await repo.getPlugin("missing-plugin")).toBeUndefined();
+    });
+
+    it("performs a single targeted fetch rather than a bulk search", async () => {
+      const fetchMock = mock((url: string | URL | Request) => {
+        const urlStr = url.toString();
+        expect(urlStr).toContain("/my-plugin/latest");
+        expect(urlStr).not.toContain("/-/v1/search");
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "my-plugin",
+              version: "1.0.0",
+              keywords: [NAMESPACE],
+              [NAMESPACE]: { extensionPoints: ["ep1"] },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      await repo.getPlugin("my-plugin");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("handles scoped packages correctly", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "@myscope/scoped-plugin",
+              version: "2.0.0",
+              keywords: [NAMESPACE],
+              [NAMESPACE]: { extensionPoints: ["ep1"] },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ) as unknown as typeof fetch;
+
+      const result = await repo.getPlugin("@myscope/scoped-plugin");
+      expect(result!.pluginId).toEqual("@myscope/scoped-plugin");
+      expect(result!.name).toEqual("scoped-plugin");
+      expect(result!.scope).toEqual("myscope");
     });
   });
 

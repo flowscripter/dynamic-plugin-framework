@@ -95,6 +95,50 @@ describe("LocalFolderPluginRepository Tests", () => {
     });
   });
 
+  describe("getPlugin()", () => {
+    it("returns the descriptor matching the pluginId", async () => {
+      const entries = [
+        {
+          pluginId: "plugin-a",
+          bundlePath: "/some/path/a.js",
+          extensionPoints: ["ep1"],
+          name: "plugin-a",
+          version: "1.0.0",
+          scope: "@myscope",
+        },
+      ];
+      await Bun.write(path.join(tmpDir, MANIFEST_FILE), JSON.stringify(entries));
+
+      const repo = new LocalFolderPluginRepository(tmpDir, MANIFEST_FILE);
+      const result = await repo.getPlugin("plugin-a");
+
+      expect(result).toBeDefined();
+      expect(result!.version).toEqual("1.0.0");
+      expect(result!.scope).toEqual("@myscope");
+    });
+
+    it("returns undefined when manifest does not exist", async () => {
+      const repo = new LocalFolderPluginRepository(tmpDir, MANIFEST_FILE);
+      expect(await repo.getPlugin("plugin-a")).toBeUndefined();
+    });
+
+    it("returns undefined when no entry matches", async () => {
+      const entries = [
+        {
+          pluginId: "plugin-a",
+          bundlePath: "/some/path/a.js",
+          extensionPoints: ["ep1"],
+          name: "plugin-a",
+          version: "1.0.0",
+        },
+      ];
+      await Bun.write(path.join(tmpDir, MANIFEST_FILE), JSON.stringify(entries));
+
+      const repo = new LocalFolderPluginRepository(tmpDir, MANIFEST_FILE);
+      expect(await repo.getPlugin("plugin-unknown")).toBeUndefined();
+    });
+  });
+
   describe("getExtensionDescriptorFromExtensionEntry()", () => {
     it("rejects with error for unknown pluginId", async () => {
       const entries = [

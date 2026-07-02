@@ -1,8 +1,10 @@
 import path from "node:path";
+import { mkdir } from "node:fs/promises";
 import semver from "semver";
 import BaseMarketplacePluginManager from "./BaseMarketplacePluginManager.ts";
 import type NpmjsPluginRepository from "./plugin_repository/NpmjsPluginRepository.ts";
 import type NpmPluginRepository from "./plugin_repository/NpmPluginRepository.ts";
+import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
 
@@ -19,19 +21,36 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
 > {
   private readonly installCommand: string;
 
+  /**
+   * @param remotes marketplace repositories used for search and as install sources.
+   * @param local repository used to load installed plugins, backed by `node_modules`.
+   * @param options.installCommand optional install command (e.g. `"npm install"`). If not
+   * specified, `"bun add"` is used if `bun` is on `PATH`, falling back to `"npm install"` if
+   * `npm` is on `PATH` instead. Throws if neither is found and no explicit command is given.
+   * @param options.pluginManager optional {@link PluginManager} to delegate to; see
+   * {@link BaseMarketplacePluginManager}.
+   */
   public constructor(
     remotes: NpmjsPluginRepository[],
     local: NpmPluginRepository,
-    { installCommand = "bun add" }: { installCommand?: string } = {},
+    { installCommand, pluginManager }: { installCommand?: string; pluginManager?: PluginManager } = {},
   ) {
-    super(remotes, local);
-    this.installCommand = installCommand;
-    const binary = installCommand.split(" ")[0]!;
+    super(remotes, local, pluginManager);
+    this.installCommand = installCommand ?? NpmPluginManager.resolveDefaultInstallCommand();
+    const binary = this.installCommand.split(" ")[0]!;
     if (!Bun.which(binary)) {
       throw new Error(
         `Install command binary '${binary}' not found on PATH; cannot install plugins`,
       );
     }
+  }
+
+  private static resolveDefaultInstallCommand(): string {
+    if (Bun.which("bun")) return "bun add";
+    if (Bun.which("npm")) return "npm install";
+    throw new Error(
+      "Neither 'bun' nor 'npm' found on PATH; specify installCommand explicitly to use a different package manager",
+    );
   }
 
   private async runCommand(args: string[], cwd: string): Promise<void> {
@@ -105,8 +124,50 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     }
 
     const cwd = path.dirname(target.nodeModulesPath);
+    await mkdir(cwd, { recursive: true });
     const cmdParts = [...this.installCommand.split(" "), descriptor.pluginId];
     await this.runCommand(cmdParts, cwd);
+
+    // If the plugin has no pre-built bundled entry (dist/index.js or equivalent), build it
+    // now. Plugins must ship as self-contained bundles so that dynamic import() from a
+    // compiled binary can load them without needing to resolve external package specifiers.
+    await this.ensurePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
+  }
+
+  private async ensurePluginBundled(
+    pluginId: string,
+    nodeModulesPath: string,
+    cwd: string,
+  ): Promise<void> {
+    const pluginDir = path.join(nodeModulesPath, pluginId);
+    const pkgJsonPath = path.join(pluginDir, "package.json");
+    const pkgFile = Bun.file(pkgJsonPath);
+    if (!(await pkgFile.exists())) return;
+
+    const pkg = (await pkgFile.json()) as Record<string, unknown>;
+    const exports = pkg["exports"] as Record<string, unknown> | undefined;
+    const rootExport = exports?.["."] as Record<string, string> | undefined;
+
+    const defaultEntry = rootExport?.["default"] as string | undefined;
+    if (defaultEntry) {
+      const defaultEntryAbs = path.join(pluginDir, defaultEntry);
+      if (await Bun.file(defaultEntryAbs).exists()) return;  // bundled dist already present
+    }
+
+    // No bundled entry - build from source if a TypeScript entry exists
+    const bunEntry = rootExport?.["bun"] as string | undefined;
+    const sourceEntry = bunEntry ?? (pkg["module"] as string | undefined);
+    if (!sourceEntry) return;
+
+    const sourceEntryAbs = path.join(pluginDir, sourceEntry);
+    if (!(await Bun.file(sourceEntryAbs).exists())) return;
+
+    const outDir = defaultEntry
+      ? path.dirname(path.join(pluginDir, defaultEntry))
+      : path.join(pluginDir, "dist");
+
+    const buildCmdParts = ["bun", "build", sourceEntryAbs, "--outdir", outDir, "--target", "bun"];
+    await this.runCommand(buildCmdParts, cwd);
   }
 
   public async uninstall(pluginId: string): Promise<void> {
@@ -122,6 +183,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     }
 
     const cwd = path.dirname(this.local.nodeModulesPath);
+    await mkdir(cwd, { recursive: true });
     let removeCmd: string;
     if (this.installCommand.startsWith("bun")) {
       removeCmd = "bun remove";

@@ -6,6 +6,38 @@ import type ExtensionEntry from "../../api/plugin_repository/ExtensionEntry.ts";
 import type VersionedPluginDescriptor from "../../api/plugin_repository/VersionedPluginDescriptor.ts";
 import loadPlugin from "../util/PluginLoader.ts";
 
+interface PackageExports {
+  [key: string]: string | PackageExports;
+}
+
+// Resolve the best entry file for a plugin package, preferring a pre-bundled "default"
+// entry over the "bun" TypeScript source. In compiled Bun binaries, dynamic imports of
+// TypeScript files that in turn import external packages via specifiers (e.g. peer deps)
+// fail because package resolution doesn't cross into compiled-binary bundles.
+async function resolvePluginEntry(pluginPath: string): Promise<string> {
+  const pkgJsonPath = path.join(pluginPath, "package.json");
+  const pkgFile = Bun.file(pkgJsonPath);
+  if (!(await pkgFile.exists())) return pluginPath;
+
+  const pkg = (await pkgFile.json()) as Record<string, unknown>;
+  const exports = pkg["exports"] as PackageExports | undefined;
+  const rootExport = exports?.["."] as PackageExports | undefined;
+
+  const candidates: (string | undefined)[] = [
+    rootExport?.["default"] as string | undefined,
+    pkg["main"] as string | undefined,
+    rootExport?.["bun"] as string | undefined,
+  ];
+
+  for (const rel of candidates) {
+    if (!rel || typeof rel !== "string") continue;
+    const abs = path.join(pluginPath, rel);
+    if (await Bun.file(abs).exists()) return abs;
+  }
+
+  return pluginPath;
+}
+
 interface PackageJsonNamespaceData {
   extensionPoints?: string[];
   pluginDependencies?: Array<{ scope?: string; name: string; versionRange: string }>;
@@ -50,7 +82,8 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
         for (const scopedName of scopedDirs) {
           if (scopedName.startsWith(".")) continue;
           const packageName = `${dirName}/${scopedName}`;
-          const descriptor = await this.readPackageDescriptor(packageName, dirName);
+          // pass scope without the leading "@" so getPluginId() can prepend it correctly
+          const descriptor = await this.readPackageDescriptor(packageName, dirName.slice(1));
           if (descriptor) yield descriptor;
         }
       } else {
@@ -84,7 +117,7 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
 
     let pluginName: string;
     if (scope) {
-      pluginName = packageName.slice(scope.length + 1);
+      pluginName = packageName.slice(packageName.indexOf("/") + 1);
     } else {
       pluginName = packageName;
     }
@@ -104,6 +137,11 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
     return this.getPluginsAsyncIterable();
   }
 
+  public async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+    const scope = pluginId.startsWith("@") ? pluginId.slice(1, pluginId.indexOf("/")) : undefined;
+    return this.readPackageDescriptor(pluginId, scope);
+  }
+
   private async *scanForExtensionsAsyncIterable(
     extensionPoint: string,
   ): AsyncIterable<ExtensionEntry> {
@@ -111,7 +149,9 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
       if (!descriptor.extensionPoints.includes(extensionPoint)) {
         continue;
       }
-      const result = await loadPlugin(descriptor.pluginId);
+      const pluginPath = path.join(this.nodeModulesPath, descriptor.pluginId);
+      const entryPath = await resolvePluginEntry(pluginPath);
+      const result = await loadPlugin(entryPath);
       if (!result.isValidPlugin || !result.plugin) {
         continue;
       }
@@ -138,7 +178,9 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
   public async getExtensionDescriptorFromExtensionEntry(
     extensionEntry: ExtensionEntry,
   ): Promise<Readonly<ExtensionDescriptor>> {
-    const result = await loadPlugin(extensionEntry.pluginId);
+    const pluginPath = path.join(this.nodeModulesPath, extensionEntry.pluginId);
+    const entryPath = await resolvePluginEntry(pluginPath);
+    const result = await loadPlugin(entryPath);
     if (!result.isValidPlugin || !result.plugin) {
       return Promise.reject(new Error(`Failed to load plugin ${extensionEntry.pluginId}`));
     }

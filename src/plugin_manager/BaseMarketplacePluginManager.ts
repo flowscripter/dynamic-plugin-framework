@@ -3,6 +3,7 @@ import type MarketplacePluginManager from "../api/plugin_manager/MarketplacePlug
 import type MarketplacePluginRepository from "../api/plugin_repository/MarketplacePluginRepository.ts";
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
 import type ExtensionInfo from "../api/plugin_manager/ExtensionInfo.ts";
+import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type SearchQuery from "../api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 import DefaultPluginManager from "./DefaultPluginManager.ts";
@@ -22,13 +23,22 @@ export default abstract class BaseMarketplacePluginManager<
   TRemote extends MarketplacePluginRepository,
   TLocal extends VersionedPluginRepository,
 > implements MarketplacePluginManager {
-  private readonly pluginManager: DefaultPluginManager;
+  private readonly pluginManager: PluginManager;
 
+  /**
+   * @param remotes marketplace repositories used for search and as install sources.
+   * @param local repository used to load installed plugins.
+   * @param pluginManager optional {@link PluginManager} to delegate {@link registerExtensions},
+   * {@link getRegisteredExtensions} and {@link instantiate} to. Defaults to a
+   * {@link DefaultPluginManager} backed by `local`. Provide this to supply a custom
+   * {@link PluginManager} implementation.
+   */
   public constructor(
     protected readonly remotes: TRemote[],
     protected readonly local: TLocal,
+    pluginManager?: PluginManager,
   ) {
-    this.pluginManager = new DefaultPluginManager([local]);
+    this.pluginManager = pluginManager ?? new DefaultPluginManager([local]);
   }
 
   private async *searchAsyncIterable(
@@ -53,23 +63,13 @@ export default abstract class BaseMarketplacePluginManager<
   private async *checkForUpdatesIterable(
     remote: VersionedPluginRepository,
   ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {
-    const remotePlugins: VersionedPluginDescriptor[] = [];
-    for await (const p of remote.getPlugins()) {
-      remotePlugins.push({ ...p });
-    }
-
     for await (const localPlugin of this.local.getPlugins()) {
       const localId = localPlugin.scope
         ? `${localPlugin.scope}/${localPlugin.name}`
         : localPlugin.name;
-      for (const remotePlugin of remotePlugins) {
-        const remoteId = remotePlugin.scope
-          ? `${remotePlugin.scope}/${remotePlugin.name}`
-          : remotePlugin.name;
-        if (remoteId === localId && semver.gt(remotePlugin.version, localPlugin.version)) {
-          yield { descriptor: remotePlugin, availableVersion: remotePlugin.version };
-          break;
-        }
+      const remotePlugin = await remote.getPlugin(localId);
+      if (remotePlugin && semver.gt(remotePlugin.version, localPlugin.version)) {
+        yield { descriptor: remotePlugin, availableVersion: remotePlugin.version };
       }
     }
   }
