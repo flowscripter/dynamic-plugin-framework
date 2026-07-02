@@ -201,14 +201,14 @@ classDiagram
 
     class DefaultMarketplacePluginManager {
         <<abstract>>
-        constructor(remotes[], local)
+        constructor(remotes[], local, pluginManager?)
         checkForUpdates(remote?) AsyncIterable~UpdateInfo~
     }
 
     class NpmPluginManager {
         constructor(remotes[], local, opts?)
-        install: shells out to bun add / npm install
-        uninstall: shells out to bun remove
+        install: shells out to installCommand (default "bun add", falling back to "npm install" if bun is not on PATH)
+        uninstall: shells out to the matching remove command (e.g. "bun remove" / "npm uninstall")
     }
 
     class HttpPluginManager {

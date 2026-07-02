@@ -106,6 +106,33 @@ describe("HttpManifestPluginRepository Tests", () => {
     });
   });
 
+  describe("getPlugin()", () => {
+    it("returns the descriptor matching the bundleUrl", async () => {
+      mockFetchWithManifest(makeManifest());
+      const repo = new HttpManifestPluginRepository({
+        manifestUrl: MANIFEST_URL,
+        name: "Test",
+        cacheFolder: tmpDir,
+      });
+
+      const result = await repo.getPlugin("https://example.com/plugin-a.js");
+      expect(result).toBeDefined();
+      expect(result!.name).toEqual("plugin-a");
+      expect(result!.version).toEqual("1.0.0");
+    });
+
+    it("returns undefined when no entry matches", async () => {
+      mockFetchWithManifest(makeManifest());
+      const repo = new HttpManifestPluginRepository({
+        manifestUrl: MANIFEST_URL,
+        name: "Test",
+        cacheFolder: tmpDir,
+      });
+
+      expect(await repo.getPlugin("https://example.com/nonexistent.js")).toBeUndefined();
+    });
+  });
+
   describe("search()", () => {
     it("returns all entries for empty query text", async () => {
       mockFetchWithManifest(makeManifest());

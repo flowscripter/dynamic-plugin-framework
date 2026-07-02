@@ -99,7 +99,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
       const slash = packageName.indexOf("/");
       if (slash !== -1) {
         return {
-          scope: packageName.slice(0, slash),
+          scope: packageName.slice(1, slash),
           shortName: packageName.slice(slash + 1),
         };
       }
@@ -111,24 +111,28 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     const cached = this.metaCache.get(packageName);
     if (cached) return cached;
 
+    const doc = await this.fetchPackageDoc(packageName);
+    const meta = (doc?.[this.packageJsonNamespace] as NpmPackageMeta | undefined) ?? {};
+    this.metaCache.set(packageName, meta);
+    return meta;
+  }
+
+  private async fetchPackageDoc(packageName: string): Promise<Record<string, unknown> | undefined> {
     const response = await fetch(`${this.registryUrl}/${packageName}/latest`, {
       headers: this.buildHeaders(),
     });
     if (!response.ok) {
-      const meta: NpmPackageMeta = {};
-      this.metaCache.set(packageName, meta);
-      return meta;
+      return undefined;
     }
-    const pkg = (await response.json()) as Record<string, unknown>;
-    const meta = (pkg[this.packageJsonNamespace] as NpmPackageMeta | undefined) ?? {};
-    this.metaCache.set(packageName, meta);
-    return meta;
+    return (await response.json()) as Record<string, unknown>;
   }
 
   private async *searchAsyncIterable(
     query: Readonly<NpmSearchQuery>,
   ): AsyncIterable<VersionedPluginDescriptor> {
-    let searchText = `${query.text ?? ""}+keywords:${this.packageJsonNamespace}`.trim();
+    // Search by keyword only to ensure reliable results from npm's search ranking.
+    // Text filtering is applied client-side to avoid packages being buried in results.
+    let searchText = `keywords:${this.packageJsonNamespace}`;
     if (query.keywords) {
       for (const kw of query.keywords) {
         searchText += `+keywords:${kw}`;
@@ -144,9 +148,11 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     }
     const result = (await response.json()) as NpmSearchResult;
 
+    const textFilter = query.text?.toLowerCase();
     for (const obj of result.objects) {
       const pkg = obj.package;
       if (!pkg.keywords?.includes(this.packageJsonNamespace)) continue;
+      if (textFilter && !pkg.name.toLowerCase().includes(textFilter)) continue;
 
       const meta = await this.fetchPackageMeta(pkg.name);
       const { scope, shortName } = this.parsePackageName(pkg.name);
@@ -169,6 +175,30 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
 
   public getPlugins(): AsyncIterable<Readonly<VersionedPluginDescriptor>> {
     return this.searchAsyncIterable({ text: "" });
+  }
+
+  public async getPlugin(
+    pluginId: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+    const doc = await this.fetchPackageDoc(pluginId);
+    if (!doc) return undefined;
+
+    const keywords = doc["keywords"] as string[] | undefined;
+    if (!keywords?.includes(this.packageJsonNamespace)) return undefined;
+
+    const meta = (doc[this.packageJsonNamespace] as NpmPackageMeta | undefined) ?? {};
+    this.metaCache.set(pluginId, meta);
+    const { scope, shortName } = this.parsePackageName(pluginId);
+
+    return {
+      pluginId,
+      extensionPoints: meta.extensionPoints ?? [],
+      pluginData: meta.pluginData ? new Map(Object.entries(meta.pluginData)) : undefined,
+      scope,
+      name: shortName,
+      version: doc["version"] as string,
+      dependencies: meta.pluginDependencies,
+    };
   }
 
   private async *scanForExtensionsAsyncIterable(

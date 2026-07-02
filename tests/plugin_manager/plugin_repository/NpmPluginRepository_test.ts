@@ -110,7 +110,7 @@ describe("NpmPluginRepository Tests", () => {
       expect(results.length).toEqual(1);
       expect(results[0].pluginId).toEqual("@myscope/scoped-plugin");
       expect(results[0].name).toEqual("scoped-plugin");
-      expect(results[0].scope).toEqual("@myscope");
+      expect(results[0].scope).toEqual("myscope");
     });
 
     it("mixes plain and scoped packages", async () => {
@@ -132,6 +132,43 @@ describe("NpmPluginRepository Tests", () => {
       }
 
       expect(ids.sort()).toEqual(["@scope/scoped-plugin", "plain-plugin"]);
+    });
+  });
+
+  describe("getPlugin()", () => {
+    it("returns the descriptor for an installed plugin", async () => {
+      await writePackageJson("my-plugin", {
+        name: "my-plugin",
+        version: "1.2.3",
+        [NAMESPACE]: { extensionPoints: ["ep1"] },
+      });
+
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const result = await repo.getPlugin("my-plugin");
+
+      expect(result).toBeDefined();
+      expect(result!.pluginId).toEqual("my-plugin");
+      expect(result!.version).toEqual("1.2.3");
+    });
+
+    it("returns undefined for a plugin that is not installed", async () => {
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      expect(await repo.getPlugin("missing-plugin")).toBeUndefined();
+    });
+
+    it("handles scoped packages", async () => {
+      await writePackageJson("@myscope/scoped-plugin", {
+        name: "@myscope/scoped-plugin",
+        version: "3.0.0",
+        [NAMESPACE]: { extensionPoints: ["ep1"] },
+      });
+
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const result = await repo.getPlugin("@myscope/scoped-plugin");
+
+      expect(result).toBeDefined();
+      expect(result!.name).toEqual("scoped-plugin");
+      expect(result!.scope).toEqual("myscope");
     });
   });
 });
