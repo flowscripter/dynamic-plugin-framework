@@ -33,7 +33,10 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
   public constructor(
     remotes: NpmjsPluginRepository[],
     local: NpmPluginRepository,
-    { installCommand, pluginManager }: { installCommand?: string; pluginManager?: PluginManager } = {},
+    {
+      installCommand,
+      pluginManager,
+    }: { installCommand?: string; pluginManager?: PluginManager } = {},
   ) {
     super(remotes, local, pluginManager);
     this.installCommand = installCommand ?? NpmPluginManager.resolveDefaultInstallCommand();
@@ -151,7 +154,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     const defaultEntry = rootExport?.["default"] as string | undefined;
     if (defaultEntry) {
       const defaultEntryAbs = path.join(pluginDir, defaultEntry);
-      if (await Bun.file(defaultEntryAbs).exists()) return;  // bundled dist already present
+      if (await Bun.file(defaultEntryAbs).exists()) return; // bundled dist already present
     }
 
     // No bundled entry - build from source if a TypeScript entry exists

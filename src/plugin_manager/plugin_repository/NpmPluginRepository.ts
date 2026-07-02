@@ -137,7 +137,9 @@ export default class NpmPluginRepository implements VersionedPluginRepository {
     return this.getPluginsAsyncIterable();
   }
 
-  public async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+  public async getPlugin(
+    pluginId: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
     const scope = pluginId.startsWith("@") ? pluginId.slice(1, pluginId.indexOf("/")) : undefined;
     return this.readPackageDescriptor(pluginId, scope);
   }

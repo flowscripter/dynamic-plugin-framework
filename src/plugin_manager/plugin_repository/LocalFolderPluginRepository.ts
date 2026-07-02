@@ -68,7 +68,9 @@ export default class LocalFolderPluginRepository implements VersionedPluginRepos
     return this.getPluginsAsyncIterable();
   }
 
-  public async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+  public async getPlugin(
+    pluginId: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
     const entries = await this.readManifest();
     const entry = entries.find((e) => e.pluginId === pluginId);
     return entry ? this.entryToDescriptor(entry) : undefined;

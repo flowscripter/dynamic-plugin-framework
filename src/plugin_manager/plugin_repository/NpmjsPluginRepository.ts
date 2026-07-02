@@ -177,7 +177,9 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     return this.searchAsyncIterable({ text: "" });
   }
 
-  public async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+  public async getPlugin(
+    pluginId: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
     const doc = await this.fetchPackageDoc(pluginId);
     if (!doc) return undefined;
 

@@ -41,9 +41,7 @@ class MockRemote {
   }
 
   async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
-    return this.descriptors.find(
-      (d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId,
-    );
+    return this.descriptors.find((d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId);
   }
 
   scanForExtensions(_ep: string): AsyncIterable<Readonly<ExtensionEntry>> {
@@ -320,7 +318,9 @@ describe("NpmPluginManager", () => {
     });
 
     it("defaults to 'bun add' when bun is on PATH", () => {
-      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "bun" ? "/usr/bin/bun" : null));
+      spyOn(Bun, "which").mockImplementation((binary: string) =>
+        binary === "bun" ? "/usr/bin/bun" : null,
+      );
 
       expect(
         () =>
@@ -332,7 +332,9 @@ describe("NpmPluginManager", () => {
     });
 
     it("falls back to 'npm install' when bun is not on PATH but npm is", () => {
-      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
+      spyOn(Bun, "which").mockImplementation((binary: string) =>
+        binary === "npm" ? "/usr/bin/npm" : null,
+      );
 
       expect(
         () =>
@@ -356,7 +358,9 @@ describe("NpmPluginManager", () => {
     });
 
     it("uses an explicit installCommand even when its binary would not be the auto-detected default", () => {
-      spyOn(Bun, "which").mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
+      spyOn(Bun, "which").mockImplementation((binary: string) =>
+        binary === "npm" ? "/usr/bin/npm" : null,
+      );
 
       expect(
         () =>

@@ -39,9 +39,7 @@ class MockRemote {
   }
 
   async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
-    return this.descriptors.find(
-      (d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId,
-    );
+    return this.descriptors.find((d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId);
   }
 
   scanForExtensions(_ep: string): AsyncIterable<Readonly<ExtensionEntry>> {

@@ -86,7 +86,9 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
     return this.getPluginsAsyncIterable();
   }
 
-  public async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+  public async getPlugin(
+    pluginId: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
     const entries = await this.fetchManifest();
     const entry = entries.find((e) => e.bundleUrl === pluginId);
     return entry ? this.entryToDescriptor(entry) : undefined;
