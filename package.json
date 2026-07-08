@@ -1,6 +1,6 @@
 {
   "name": "@flowscripter/dynamic-plugin-framework",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "description": "Dynamic plugin framework for Bun based on Javascript Modules and import() function",
   "keywords": [
     "bun",
