@@ -15,6 +15,28 @@ import type {
 } from "@flowscripter/dynamic-plugin-framework/plugin";
 ```
 
+When bundling a plugin (e.g. via `bun build`), mark
+`@flowscripter/dynamic-plugin-framework` (and any other host-supplied peer
+dependency, e.g. `@flowscripter/dynamic-cli-framework` for CLI plugins) as
+**external**, since the host application provides these at runtime and they
+should not be duplicated inside every plugin's bundle:
+
+```bash
+bun build index.ts --outdir dist --target bun --external "@flowscripter/dynamic-plugin-framework"
+```
+
+This only works if the dependency is also declared as a `peerDependency` in
+the plugin's `package.json` - that's what signals the host application is
+expected to have a compatible version installed, making it safe to leave
+unresolved in the bundle. Regular `dependencies` the plugin actually ships
+with (e.g. a helper library) should not be externalized and should continue
+to be bundled normally.
+
+The one exception is a plugin meant to be a fully self-contained
+distributable with no host-provided `node_modules` alongside it (e.g.
+shipped as a single file) - in that case omit `--external` and accept the
+duplication cost.
+
 **Host application authors** import from the main entry point, which exposes
 the full API including concrete implementations. For example:
 
