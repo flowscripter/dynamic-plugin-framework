@@ -15,27 +15,45 @@ import type {
 } from "@flowscripter/dynamic-plugin-framework/plugin";
 ```
 
-When bundling a plugin (e.g. via `bun build`), mark
-`@flowscripter/dynamic-plugin-framework` (and any other host-supplied peer
-dependency, e.g. `@flowscripter/dynamic-cli-framework` for CLI plugins) as
-**external**, since the host application provides these at runtime and they
-should not be duplicated inside every plugin's bundle:
+When building a plugin that will be consumed via `node_modules` (i.e.
+installed as a dependency by a host application), don't bundle at all -
+transpile with `tsc` instead:
 
-```bash
-bun build index.ts --outdir dist --target bun --external "@flowscripter/dynamic-plugin-framework"
+```json
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["index.ts", "src/**/*.ts"]
+}
 ```
 
-This only works if the dependency is also declared as a `peerDependency` in
-the plugin's `package.json` - that's what signals the host application is
-expected to have a compatible version installed, making it safe to leave
-unresolved in the bundle. Regular `dependencies` the plugin actually ships
-with (e.g. a helper library) should not be externalized and should continue
-to be bundled normally.
+This mirrors your source tree into `dist/`, rewrites relative `.ts` imports
+to `.js`, and leaves bare specifiers (e.g.
+`@flowscripter/dynamic-plugin-framework`, or
+`@flowscripter/dynamic-cli-framework` for CLI plugins) completely untouched
+so they resolve via `node_modules` at runtime. There's nothing to
+externalize because nothing gets bundled: mark host-supplied packages as
+`peerDependencies` in your `package.json` (this documents "the host
+application is expected to have a compatible version installed") and let
+regular `dependencies` (e.g. a helper library your plugin actually ships
+with) resolve from `node_modules` the same way.
 
 The one exception is a plugin meant to be a fully self-contained
-distributable with no host-provided `node_modules` alongside it (e.g.
-shipped as a single file) - in that case omit `--external` and accept the
-duplication cost.
+distributable loaded via URL/CDN rather than `node_modules` (e.g.
+`UrlListPluginRepository` fetches the bundle and dynamically imports it from
+a local cache path outside any `node_modules` tree) - in that case full
+bundling (e.g. `bun build`) is required, since there is no `node_modules` to
+resolve an unbundled or externalized import against at that cache path. If a
+host-supplied package is only ever referenced via `import type` (fully erased
+at compile time, so nothing is emitted to bundle in the first place), it can
+still be marked `--external` and `peerDependency` as a guardrail so a future
+accidental value import fails loudly instead of silently duplicating the
+host's runtime code into the bundle. Any package with a real value import
+must stay bundled.
 
 **Host application authors** import from the main entry point, which exposes
 the full API including concrete implementations. For example:
