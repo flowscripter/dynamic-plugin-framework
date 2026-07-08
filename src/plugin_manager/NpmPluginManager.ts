@@ -130,47 +130,42 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     await mkdir(cwd, { recursive: true });
     const cmdParts = [...this.installCommand.split(" "), descriptor.pluginId];
     await this.runCommand(cmdParts, cwd);
-
-    // If the plugin has no pre-built bundled entry (dist/index.js or equivalent), build it
-    // now. Plugins must ship as self-contained bundles so that dynamic import() from a
-    // compiled binary can load them without needing to resolve external package specifiers.
-    await this.ensurePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
+    await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }
 
-  private async ensurePluginBundled(
+  private async validatePluginBundled(
     pluginId: string,
     nodeModulesPath: string,
     cwd: string,
   ): Promise<void> {
     const pluginDir = path.join(nodeModulesPath, pluginId);
-    const pkgJsonPath = path.join(pluginDir, "package.json");
-    const pkgFile = Bun.file(pkgJsonPath);
+    const pkgFile = Bun.file(path.join(pluginDir, "package.json"));
     if (!(await pkgFile.exists())) return;
 
     const pkg = (await pkgFile.json()) as Record<string, unknown>;
     const exports = pkg["exports"] as Record<string, unknown> | undefined;
     const rootExport = exports?.["."] as Record<string, string> | undefined;
 
-    const defaultEntry = rootExport?.["default"] as string | undefined;
-    if (defaultEntry) {
-      const defaultEntryAbs = path.join(pluginDir, defaultEntry);
-      if (await Bun.file(defaultEntryAbs).exists()) return; // bundled dist already present
+    const candidates = [rootExport?.["default"], pkg["main"] as string | undefined];
+
+    for (const rel of candidates) {
+      if (!rel || typeof rel !== "string") continue;
+      if (await Bun.file(path.join(pluginDir, rel)).exists()) return;
     }
 
-    // No bundled entry - build from source if a TypeScript entry exists
-    const bunEntry = rootExport?.["bun"] as string | undefined;
-    const sourceEntry = bunEntry ?? (pkg["module"] as string | undefined);
-    if (!sourceEntry) return;
-
-    const sourceEntryAbs = path.join(pluginDir, sourceEntry);
-    if (!(await Bun.file(sourceEntryAbs).exists())) return;
-
-    const outDir = defaultEntry
-      ? path.dirname(path.join(pluginDir, defaultEntry))
-      : path.join(pluginDir, "dist");
-
-    const buildCmdParts = ["bun", "build", sourceEntryAbs, "--outdir", outDir, "--target", "bun"];
-    await this.runCommand(buildCmdParts, cwd);
+    // No bundled entry found — uninstall and surface a clear error.
+    let removeCmd: string;
+    if (this.installCommand.startsWith("bun")) {
+      removeCmd = "bun remove";
+    } else if (this.installCommand.startsWith("npm")) {
+      removeCmd = "npm uninstall";
+    } else {
+      removeCmd = this.installCommand.replace(/add|install/, "remove");
+    }
+    await this.runCommand([...removeCmd.split(" "), pluginId], cwd);
+    throw new Error(
+      `Plugin ${pluginId} does not ship a pre-built bundle (no "default" export entry found). Only bundled plugins are supported.`,
+    );
   }
 
   public async uninstall(pluginId: string): Promise<void> {
