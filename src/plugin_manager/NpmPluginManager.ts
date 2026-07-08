@@ -146,10 +146,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     const exports = pkg["exports"] as Record<string, unknown> | undefined;
     const rootExport = exports?.["."] as Record<string, string> | undefined;
 
-    const candidates = [
-      rootExport?.["default"],
-      pkg["main"] as string | undefined,
-    ];
+    const candidates = [rootExport?.["default"], pkg["main"] as string | undefined];
 
     for (const rel of candidates) {
       if (!rel || typeof rel !== "string") continue;
