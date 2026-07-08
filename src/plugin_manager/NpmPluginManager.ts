@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import semver from "semver";
 import BaseMarketplacePluginManager from "./BaseMarketplacePluginManager.ts";
 import type NpmjsPluginRepository from "./plugin_repository/NpmjsPluginRepository.ts";
@@ -128,7 +128,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
 
     const cwd = path.dirname(target.nodeModulesPath);
     await mkdir(cwd, { recursive: true });
-    const cmdParts = [...this.installCommand.split(" "), descriptor.pluginId];
+    const cmdParts = [...this.installCommand.split(" "), "--omit=peer", descriptor.pluginId];
     await this.runCommand(cmdParts, cwd);
     await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }
@@ -192,5 +192,15 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     }
     const cmdParts = [...removeCmd.split(" "), pluginId];
     await this.runCommand(cmdParts, cwd);
+
+    if (this.installCommand.startsWith("bun")) {
+      // bun does not prune node_modules of packages orphaned by removal, leaving stale
+      // transitive dependencies on disk even though the lockfile is correct.
+      // See https://github.com/oven-sh/bun/issues/3605
+      if (path.basename(this.local.nodeModulesPath) === "node_modules") {
+        await rm(this.local.nodeModulesPath, { recursive: true, force: true });
+        await this.runCommand(["bun", "install"], cwd);
+      }
+    }
   }
 }
