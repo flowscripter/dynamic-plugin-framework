@@ -128,7 +128,7 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
 
     const cwd = path.dirname(target.nodeModulesPath);
     await mkdir(cwd, { recursive: true });
-    const cmdParts = [...this.installCommand.split(" "), "--omit=peer", descriptor.pluginId];
+    const cmdParts = [...this.installCommand.split(" "), descriptor.pluginId];
     await this.runCommand(cmdParts, cwd);
     await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }
