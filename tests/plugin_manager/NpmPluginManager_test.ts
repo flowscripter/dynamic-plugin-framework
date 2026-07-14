@@ -11,6 +11,7 @@ import type ExtensionEntry from "../../src/api/plugin_repository/ExtensionEntry.
 import type ExtensionDescriptor from "../../src/api/plugin/ExtensionDescriptor.ts";
 import type PluginManager from "../../src/api/plugin_manager/PluginManager.ts";
 import type ExtensionInfo from "../../src/api/plugin_manager/ExtensionInfo.ts";
+import type SpawnInterface from "../../src/api/spawn/SpawnInterface.ts";
 
 const NAMESPACE = "mypluginframework";
 
@@ -383,6 +384,64 @@ describe("NpmPluginManager", () => {
             { installCommand: "yarn add" },
           ),
       ).toThrow("Install command binary 'yarn' not found on PATH");
+    });
+  });
+
+  describe("setSpawn()", () => {
+    it("delegates uninstall() to the injected SpawnInterface instead of Bun.spawn", async () => {
+      await mkdir(path.join(nodeModulesDir, "my-plugin"), { recursive: true });
+      await Bun.write(
+        path.join(nodeModulesDir, "my-plugin", "package.json"),
+        JSON.stringify({
+          name: "my-plugin",
+          version: "1.0.0",
+          [NAMESPACE]: { extensionPoints: ["ep1"] },
+        }),
+      );
+
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
+
+      const calls: Array<{ command: ReadonlyArray<string>; cwd: string }> = [];
+      const fakeSpawn: SpawnInterface = {
+        spawn: (command, options) => {
+          calls.push({ command, cwd: options.cwd });
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await manager.uninstall("my-plugin");
+
+      // the remove command, plus a follow-up "bun install" re-prune workaround (see
+      // NpmPluginManager.uninstall's bun-orphaned-dependency comment)
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      expect(calls[0].command).toContain("my-plugin");
+      expect(calls[0].cwd).toEqual(path.dirname(nodeModulesDir));
+    });
+
+    it("throws with the launch error message when the injected SpawnInterface fails to launch", async () => {
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
+
+      const fakeSpawn: SpawnInterface = {
+        spawn: () => Promise.resolve({ ok: false, error: new Error("ENOENT") }),
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await expect(manager.uninstall("my-plugin")).rejects.toThrow("failed to launch: ENOENT");
+    });
+
+    it("throws with the exit code when the injected SpawnInterface exits non-zero", async () => {
+      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
+
+      const fakeSpawn: SpawnInterface = {
+        spawn: () => Promise.resolve({ ok: false, exitCode: 7 }),
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await expect(manager.uninstall("my-plugin")).rejects.toThrow("failed with exit code 7");
     });
   });
 });

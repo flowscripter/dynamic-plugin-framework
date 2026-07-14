@@ -15,6 +15,8 @@ export type { default as MarketplacePluginRepository } from "./src/api/plugin_re
 export type { default as ExtensionRegistry } from "./src/api/registry/ExtensionRegistry.ts";
 export type { default as ExtensionPointRegistry } from "./src/api/registry/ExtensionPointRegistry.ts";
 export type { default as PluginInstaller } from "./src/api/plugin_installer/PluginInstaller.ts";
+export type { default as SpawnInterface, SpawnResult } from "./src/api/spawn/SpawnInterface.ts";
+export type { default as SpawnCapable } from "./src/api/spawn/SpawnCapable.ts";
 export { default as DefaultPluginManager } from "./src/plugin_manager/DefaultPluginManager.ts";
 export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_repository/UrlListPluginRepository.ts";
 export { default as LocalFolderPluginRepository } from "./src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";
