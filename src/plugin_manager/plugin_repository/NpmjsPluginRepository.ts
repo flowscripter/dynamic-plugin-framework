@@ -155,6 +155,8 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
       if (textFilter && !pkg.name.toLowerCase().includes(textFilter)) continue;
 
       const meta = await this.fetchPackageMeta(pkg.name);
+      if (!meta.extensionPoints?.length) continue;
+
       const { scope, shortName } = this.parsePackageName(pkg.name);
 
       yield {
@@ -187,6 +189,8 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     if (!keywords?.includes(this.packageJsonNamespace)) return undefined;
 
     const meta = (doc[this.packageJsonNamespace] as NpmPackageMeta | undefined) ?? {};
+    if (!meta.extensionPoints?.length) return undefined;
+
     this.metaCache.set(pluginId, meta);
     const { scope, shortName } = this.parsePackageName(pluginId);
 

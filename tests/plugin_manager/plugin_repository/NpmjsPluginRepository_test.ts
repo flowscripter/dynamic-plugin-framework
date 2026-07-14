@@ -120,6 +120,19 @@ describe("NpmjsPluginRepository Tests", () => {
       expect(results[0].scope).toEqual("myscope");
     });
 
+    it("filters out packages that have the namespace keyword but no extension points", async () => {
+      const searchResult = makeSearchResult([
+        { name: "namespace-api", version: "1.0.0", keywords: [NAMESPACE] },
+      ]);
+      mockFetch(searchResult, makePackageMeta([]));
+
+      const results: unknown[] = [];
+      for await (const d of repo.search({})) {
+        results.push(d);
+      }
+      expect(results.length).toEqual(0);
+    });
+
     it("appends extra keywords to the search query", async () => {
       const fetchMock = mock((url: string | URL | Request) => {
         const urlStr = url.toString();
@@ -177,6 +190,24 @@ describe("NpmjsPluginRepository Tests", () => {
       ) as unknown as typeof fetch;
 
       expect(await repo.getPlugin("unrelated")).toBeUndefined();
+    });
+
+    it("returns undefined when the package has the namespace keyword but no extension points", async () => {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "namespace-api",
+              version: "1.0.0",
+              keywords: [NAMESPACE],
+              [NAMESPACE]: { extensionPoints: [] },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ) as unknown as typeof fetch;
+
+      expect(await repo.getPlugin("namespace-api")).toBeUndefined();
     });
 
     it("returns undefined when the registry fetch fails", async () => {

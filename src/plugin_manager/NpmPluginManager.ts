@@ -7,19 +7,23 @@ import type NpmPluginRepository from "./plugin_repository/NpmPluginRepository.ts
 import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
+import type SpawnCapable from "../api/spawn/SpawnCapable.ts";
+import type SpawnInterface from "../api/spawn/SpawnInterface.ts";
 
 /**
  * {@link BaseMarketplacePluginManager} for the npm ecosystem.
  *
  * Combines one or more {@link NpmjsPluginRepository} remotes with a local
  * {@link NpmPluginRepository} (backed by `node_modules`). Plugins are installed and
- * removed by shelling out to bun/npm.
+ * removed by shelling out to bun/npm, or via an injected {@link SpawnInterface} if
+ * {@link setSpawn} has been called.
  */
-export default class NpmPluginManager extends BaseMarketplacePluginManager<
-  NpmjsPluginRepository,
-  NpmPluginRepository
-> {
+export default class NpmPluginManager
+  extends BaseMarketplacePluginManager<NpmjsPluginRepository, NpmPluginRepository>
+  implements SpawnCapable
+{
   private readonly installCommand: string;
+  private spawn: SpawnInterface | undefined;
 
   /**
    * @param remotes marketplace repositories used for search and as install sources.
@@ -56,7 +60,22 @@ export default class NpmPluginManager extends BaseMarketplacePluginManager<
     );
   }
 
+  public setSpawn(spawn: SpawnInterface): void {
+    this.spawn = spawn;
+  }
+
   private async runCommand(args: string[], cwd: string): Promise<void> {
+    if (this.spawn) {
+      const result = await this.spawn.spawn(args, { cwd });
+      if (!result.ok) {
+        if (result.error) {
+          throw new Error(`Command '${args.join(" ")}' failed to launch: ${result.error.message}`);
+        }
+        throw new Error(`Command '${args.join(" ")}' failed with exit code ${result.exitCode}`);
+      }
+      return;
+    }
+
     const proc = Bun.spawn(args, { cwd, stdout: "inherit", stderr: "inherit" });
     const exitCode = await proc.exited;
     if (exitCode !== 0) {
