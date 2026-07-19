@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import NpmPluginManager from "../../src/plugin_manager/NpmPluginManager.ts";
+import process from "node:process";
+import NpmPluginManager, { resolveForPlatform } from "../../src/plugin_manager/NpmPluginManager.ts";
 import NpmPluginRepository from "../../src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
 import type SearchQuery from "../../src/api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../../src/api/plugin_repository/VersionedPluginDescriptor.ts";
@@ -384,6 +385,58 @@ describe("NpmPluginManager", () => {
             { installCommand: "yarn add" },
           ),
       ).toThrow("Install command binary 'yarn' not found on PATH");
+    });
+  });
+
+  describe("resolveForPlatform()", () => {
+    const originalPlatform = process.platform;
+
+    afterEach(() => {
+      Object.defineProperty(process, "platform", { value: originalPlatform });
+      spyOn(Bun, "which").mockRestore();
+    });
+
+    it("leaves the command untouched on non-win32 platforms", () => {
+      Object.defineProperty(process, "platform", { value: "linux" });
+
+      expect(resolveForPlatform(["npm", "install", "foo"])).toEqual(["npm", "install", "foo"]);
+    });
+
+    it("wraps a resolved .cmd shim through cmd.exe on win32", () => {
+      Object.defineProperty(process, "platform", { value: "win32" });
+      spyOn(Bun, "which").mockImplementation((binary: string) =>
+        binary === "npm" ? "C:\\Program Files\\nodejs\\npm.CMD" : null,
+      );
+
+      expect(resolveForPlatform(["npm", "install", "foo"])).toEqual([
+        "cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "C:\\Program Files\\nodejs\\npm.CMD",
+        "install",
+        "foo",
+      ]);
+    });
+
+    it("does not wrap a resolved non-shim executable on win32", () => {
+      Object.defineProperty(process, "platform", { value: "win32" });
+      spyOn(Bun, "which").mockImplementation((binary: string) =>
+        binary === "bun" ? "C:\\Users\\me\\.bun\\bin\\bun.exe" : null,
+      );
+
+      expect(resolveForPlatform(["bun", "add", "foo"])).toEqual([
+        "C:\\Users\\me\\.bun\\bin\\bun.exe",
+        "add",
+        "foo",
+      ]);
+    });
+
+    it("falls back to the bare binary name on win32 if Bun.which cannot resolve it", () => {
+      Object.defineProperty(process, "platform", { value: "win32" });
+      spyOn(Bun, "which").mockImplementation(() => null);
+
+      expect(resolveForPlatform(["npm", "install", "foo"])).toEqual(["npm", "install", "foo"]);
     });
   });
 
