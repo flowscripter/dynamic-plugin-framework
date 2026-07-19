@@ -1,4 +1,5 @@
 import path from "node:path";
+import process from "node:process";
 import { mkdir, rm } from "node:fs/promises";
 import semver from "semver";
 import BaseMarketplacePluginManager from "./BaseMarketplacePluginManager.ts";
@@ -9,6 +10,26 @@ import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPl
 import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
 import type SpawnCapable from "../api/spawn/SpawnCapable.ts";
 import type SpawnInterface from "../api/spawn/SpawnInterface.ts";
+
+/**
+ * On Windows, batch-file shims (e.g. `npm.cmd`, `bun.cmd`) cannot be launched directly via
+ * `CreateProcess` - they must be run through `cmd.exe /c`. Resolve the command through the shell
+ * in that case; leave it untouched on other platforms.
+ */
+export function resolveForPlatform(args: string[]): string[] {
+  if (process.platform !== "win32") {
+    return args;
+  }
+  const [bin, ...rest] = args;
+  if (bin === undefined) {
+    return args;
+  }
+  const resolved = Bun.which(bin) ?? bin;
+  if (!/\.(cmd|bat)$/i.test(resolved)) {
+    return [resolved, ...rest];
+  }
+  return ["cmd.exe", "/d", "/s", "/c", resolved, ...rest];
+}
 
 /**
  * {@link BaseMarketplacePluginManager} for the npm ecosystem.
@@ -76,7 +97,11 @@ export default class NpmPluginManager
       return;
     }
 
-    const proc = Bun.spawn(args, { cwd, stdout: "inherit", stderr: "inherit" });
+    const proc = Bun.spawn(resolveForPlatform(args), {
+      cwd,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
     const exitCode = await proc.exited;
     if (exitCode !== 0) {
       throw new Error(`Command '${args.join(" ")}' failed with exit code ${exitCode}`);
