@@ -27,7 +27,10 @@ async function writePackageJson(pkgName: string, contents: Record<string, unknow
 describe("NpmPluginRepository Tests", () => {
   describe("getPlugins()", () => {
     it("returns empty when nodeModulesPath does not exist", async () => {
-      const repo = new NpmPluginRepository("/nonexistent/node_modules", NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: "/nonexistent/node_modules",
+        packageJsonNamespace: NAMESPACE,
+      });
       const results: unknown[] = [];
       for await (const d of repo.getPlugins()) {
         results.push(d);
@@ -45,7 +48,10 @@ describe("NpmPluginRepository Tests", () => {
         },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const results: {
         pluginId: string;
         name: string;
@@ -69,7 +75,10 @@ describe("NpmPluginRepository Tests", () => {
         version: "1.0.0",
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const results: unknown[] = [];
       for await (const d of repo.getPlugins()) {
         results.push(d);
@@ -84,7 +93,10 @@ describe("NpmPluginRepository Tests", () => {
         [NAMESPACE]: { pluginData: { x: "y" } },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const results: unknown[] = [];
       for await (const d of repo.getPlugins()) {
         results.push(d);
@@ -101,7 +113,10 @@ describe("NpmPluginRepository Tests", () => {
         },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const results: { pluginId: string; name: string; scope?: string }[] = [];
       for await (const d of repo.getPlugins()) {
         results.push(d);
@@ -125,7 +140,10 @@ describe("NpmPluginRepository Tests", () => {
         [NAMESPACE]: { extensionPoints: ["ep2"] },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const ids: string[] = [];
       for await (const d of repo.getPlugins()) {
         ids.push(d.pluginId);
@@ -143,7 +161,10 @@ describe("NpmPluginRepository Tests", () => {
         [NAMESPACE]: { extensionPoints: ["ep1"] },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const result = await repo.getPlugin("my-plugin");
 
       expect(result).toBeDefined();
@@ -152,7 +173,10 @@ describe("NpmPluginRepository Tests", () => {
     });
 
     it("returns undefined for a plugin that is not installed", async () => {
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       expect(await repo.getPlugin("missing-plugin")).toBeUndefined();
     });
 
@@ -163,7 +187,10 @@ describe("NpmPluginRepository Tests", () => {
         [NAMESPACE]: { extensionPoints: ["ep1"] },
       });
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const result = await repo.getPlugin("@myscope/scoped-plugin");
 
       expect(result).toBeDefined();
