@@ -17,6 +17,8 @@ export type { default as ExtensionPointRegistry } from "./src/api/registry/Exten
 export type { default as PluginInstaller } from "./src/api/plugin_installer/PluginInstaller.ts";
 export type { default as SpawnInterface, SpawnResult } from "./src/api/spawn/SpawnInterface.ts";
 export type { default as SpawnCapable } from "./src/api/spawn/SpawnCapable.ts";
+export type { default as FetchInterface } from "./src/api/fetch/FetchInterface.ts";
+export type { default as FetchCapable } from "./src/api/fetch/FetchCapable.ts";
 export { default as DefaultPluginManager } from "./src/plugin_manager/DefaultPluginManager.ts";
 export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_repository/UrlListPluginRepository.ts";
 export { default as LocalFolderPluginRepository } from "./src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";

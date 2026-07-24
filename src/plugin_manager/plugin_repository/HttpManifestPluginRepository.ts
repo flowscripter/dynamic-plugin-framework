@@ -3,6 +3,8 @@ import type ExtensionDescriptor from "../../api/plugin/ExtensionDescriptor.ts";
 import type ExtensionEntry from "../../api/plugin_repository/ExtensionEntry.ts";
 import type VersionedPluginDescriptor from "../../api/plugin_repository/VersionedPluginDescriptor.ts";
 import type SearchQuery from "../../api/plugin_repository/SearchQuery.ts";
+import type FetchCapable from "../../api/fetch/FetchCapable.ts";
+import type FetchInterface from "../../api/fetch/FetchInterface.ts";
 import loadPlugin from "../util/PluginLoader.ts";
 
 interface RemoteManifestEntry {
@@ -22,7 +24,9 @@ interface RemoteManifestEntry {
  * it in memory. Supports free-text search across plugin name, scope, and extension point IDs.
  * Plugin bundles are downloaded and cached in `cacheFolder` when extensions are instantiated.
  */
-export default class HttpManifestPluginRepository implements MarketplacePluginRepository {
+export default class HttpManifestPluginRepository
+  implements MarketplacePluginRepository, FetchCapable
+{
   public readonly name: string;
   public readonly description?: string;
   public readonly author?: string;
@@ -30,6 +34,7 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
 
   private readonly cacheFolder: string;
   private cachedManifest: RemoteManifestEntry[] | undefined;
+  private fetchFn: FetchInterface["fetch"] = (input, init) => fetch(input, init);
 
   public constructor({
     manifestUrl,
@@ -51,11 +56,15 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
     this.cacheFolder = cacheFolder;
   }
 
+  public setFetch(fetchInterface: FetchInterface): void {
+    this.fetchFn = fetchInterface.fetch.bind(fetchInterface);
+  }
+
   private async fetchManifest(): Promise<RemoteManifestEntry[]> {
     if (this.cachedManifest) {
       return this.cachedManifest;
     }
-    const response = await fetch(this.url);
+    const response = await this.fetchFn(this.url);
     if (!response.ok) {
       throw new Error(`Failed to fetch manifest from ${this.url}: ${response.statusText}`);
     }
@@ -126,7 +135,7 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
       if (!entry.extensionPoints.includes(extensionPoint)) {
         continue;
       }
-      const result = await loadPlugin(entry.bundleUrl, this.cacheFolder, this.name);
+      const result = await loadPlugin(entry.bundleUrl, this.cacheFolder, this.name, this.fetchFn);
       if (!result.isValidPlugin || !result.plugin) {
         continue;
       }
@@ -153,7 +162,12 @@ export default class HttpManifestPluginRepository implements MarketplacePluginRe
   public async getExtensionDescriptorFromExtensionEntry(
     extensionEntry: ExtensionEntry,
   ): Promise<Readonly<ExtensionDescriptor>> {
-    const result = await loadPlugin(extensionEntry.pluginId, this.cacheFolder, this.name);
+    const result = await loadPlugin(
+      extensionEntry.pluginId,
+      this.cacheFolder,
+      this.name,
+      this.fetchFn,
+    );
     if (!result.isValidPlugin || !result.plugin) {
       return Promise.reject(new Error(`Failed to load plugin from ${extensionEntry.pluginId}`));
     }

@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type Plugin from "../../api/plugin/Plugin.ts";
+import type FetchInterface from "../../api/fetch/FetchInterface.ts";
 
 /**
  * Result of a {@link loadPlugin} invocation.
@@ -23,7 +24,12 @@ export interface PluginLoadResult {
   error?: Error;
 }
 
-async function getLocalUrl(remoteUrl: string, cacheFolder: string, repoName: string) {
+async function getLocalUrl(
+  remoteUrl: string,
+  cacheFolder: string,
+  repoName: string,
+  fetchFn: FetchInterface["fetch"],
+) {
   const url = new URL(remoteUrl);
   const urlPath = url.pathname;
 
@@ -37,7 +43,7 @@ async function getLocalUrl(remoteUrl: string, cacheFolder: string, repoName: str
 
   await mkdir(path.dirname(localPluginPath), { recursive: true });
 
-  const result = await fetch(remoteUrl);
+  const result = await fetchFn(remoteUrl);
 
   await Bun.write(installePluginFile, result);
 
@@ -58,6 +64,7 @@ export default async function loadPlugin(
   url: string,
   cacheFolder: string = path.join(os.homedir(), ".flowscripter", "plugin"),
   repoName: string = "default",
+  fetchFn: FetchInterface["fetch"] = fetch,
 ): Promise<Readonly<PluginLoadResult>> {
   const result: PluginLoadResult = {
     isValidPlugin: false,
@@ -78,7 +85,7 @@ export default async function loadPlugin(
       result.error = err as Error;
       return result;
     }
-    const localUrl = await getLocalUrl(url, cacheFolder, repoName);
+    const localUrl = await getLocalUrl(url, cacheFolder, repoName, fetchFn);
 
     try {
       module = await import(localUrl);

@@ -3,6 +3,8 @@ import type ExtensionDescriptor from "../../api/plugin/ExtensionDescriptor.ts";
 import type ExtensionEntry from "../../api/plugin_repository/ExtensionEntry.ts";
 import type VersionedPluginDescriptor from "../../api/plugin_repository/VersionedPluginDescriptor.ts";
 import type SearchQuery from "../../api/plugin_repository/SearchQuery.ts";
+import type FetchCapable from "../../api/fetch/FetchCapable.ts";
+import type FetchInterface from "../../api/fetch/FetchInterface.ts";
 
 export interface NpmSearchQuery extends SearchQuery {
   readonly keywords?: string[];
@@ -37,7 +39,7 @@ interface NpmPackageMeta {
  * Note: extensions cannot be instantiated directly from this repository — plugins must first be
  * installed locally via {@link NpmPluginInstaller}.
  */
-export default class NpmjsPluginRepository implements MarketplacePluginRepository {
+export default class NpmjsPluginRepository implements MarketplacePluginRepository, FetchCapable {
   public readonly name: string;
   public readonly description?: string;
   public readonly author?: string;
@@ -49,6 +51,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
   private readonly authToken?: string;
   private readonly username?: string;
   private readonly password?: string;
+  private fetchFn: FetchInterface["fetch"] = (input, init) => fetch(input, init);
 
   public constructor({
     name,
@@ -81,6 +84,10 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     this.authToken = authToken;
     this.username = username;
     this.password = password;
+  }
+
+  public setFetch(fetchInterface: FetchInterface): void {
+    this.fetchFn = fetchInterface.fetch.bind(fetchInterface);
   }
 
   private buildHeaders(): Headers {
@@ -118,7 +125,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
   }
 
   private async fetchPackageDoc(packageName: string): Promise<Record<string, unknown> | undefined> {
-    const response = await fetch(`${this.registryUrl}/${packageName}/latest`, {
+    const response = await this.fetchFn(`${this.registryUrl}/${packageName}/latest`, {
       headers: this.buildHeaders(),
     });
     if (!response.ok) {
@@ -139,7 +146,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
       }
     }
 
-    const response = await fetch(
+    const response = await this.fetchFn(
       `${this.registryUrl}/-/v1/search?text=${encodeURIComponent(searchText)}&size=250`,
       { headers: this.buildHeaders() },
     );
