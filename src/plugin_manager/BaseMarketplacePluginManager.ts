@@ -6,7 +6,13 @@ import type ExtensionInfo from "../api/plugin_manager/ExtensionInfo.ts";
 import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type SearchQuery from "../api/plugin_repository/SearchQuery.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
+import type FetchCapable from "../api/fetch/FetchCapable.ts";
+import type FetchInterface from "../api/fetch/FetchInterface.ts";
 import DefaultPluginManager from "./DefaultPluginManager.ts";
+
+function isFetchCapable(value: unknown): value is FetchCapable {
+  return typeof value === "object" && value !== null && "setFetch" in value;
+}
 
 /**
  * Abstract {@link MarketplacePluginManager} implementation.
@@ -22,8 +28,11 @@ import DefaultPluginManager from "./DefaultPluginManager.ts";
 export default abstract class BaseMarketplacePluginManager<
   TRemote extends MarketplacePluginRepository,
   TLocal extends VersionedPluginRepository,
-> implements MarketplacePluginManager {
+>
+  implements MarketplacePluginManager, FetchCapable
+{
   private readonly pluginManager: PluginManager;
+  protected fetchInterface: FetchInterface | undefined;
 
   /**
    * @param remotes marketplace repositories used for search and as install sources.
@@ -39,6 +48,22 @@ export default abstract class BaseMarketplacePluginManager<
     pluginManager?: PluginManager,
   ) {
     this.pluginManager = pluginManager ?? new DefaultPluginManager([local]);
+  }
+
+  /**
+   * Supplies a host-provided {@link FetchInterface} to this manager and forwards it to its
+   * `remotes`/`local` repositories, for those which support {@link FetchCapable}.
+   */
+  public setFetch(fetchInterface: FetchInterface): void {
+    this.fetchInterface = fetchInterface;
+    for (const remote of this.remotes) {
+      if (isFetchCapable(remote)) {
+        remote.setFetch(fetchInterface);
+      }
+    }
+    if (isFetchCapable(this.local)) {
+      this.local.setFetch(fetchInterface);
+    }
   }
 
   private async *searchAsyncIterable(

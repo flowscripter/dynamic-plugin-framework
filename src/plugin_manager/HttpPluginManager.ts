@@ -84,7 +84,7 @@ export default class HttpPluginManager extends BaseMarketplacePluginManager<
     if (existing) return;
 
     const bundleUrl = descriptor.pluginId;
-    const response = await fetch(bundleUrl);
+    const response = await (this.fetchInterface?.fetch ?? fetch)(bundleUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch bundle from ${bundleUrl}: ${response.statusText}`);
     }
