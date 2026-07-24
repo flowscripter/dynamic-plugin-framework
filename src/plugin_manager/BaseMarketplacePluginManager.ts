@@ -28,7 +28,9 @@ function isFetchCapable(value: unknown): value is FetchCapable {
 export default abstract class BaseMarketplacePluginManager<
   TRemote extends MarketplacePluginRepository,
   TLocal extends VersionedPluginRepository,
-> implements MarketplacePluginManager, FetchCapable {
+>
+  implements MarketplacePluginManager, FetchCapable
+{
   private readonly pluginManager: PluginManager;
   protected fetchInterface: FetchInterface | undefined;
 
