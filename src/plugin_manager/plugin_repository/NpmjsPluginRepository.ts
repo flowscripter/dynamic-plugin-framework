@@ -28,6 +28,17 @@ interface NpmPackageMeta {
   pluginData?: Record<string, string>;
 }
 
+export interface NpmjsPluginRepositoryConfig {
+  name: string;
+  description?: string;
+  author?: string;
+  registryUrl: string;
+  packageJsonNamespace: string;
+  authToken?: string;
+  username?: string;
+  password?: string;
+}
+
 /**
  * {@link MarketplacePluginRepository} backed by an npm-compatible registry (e.g. npmjs.com).
  *
@@ -62,16 +73,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     authToken,
     username,
     password,
-  }: {
-    name: string;
-    description?: string;
-    author?: string;
-    registryUrl: string;
-    packageJsonNamespace: string;
-    authToken?: string;
-    username?: string;
-    password?: string;
-  }) {
+  }: NpmjsPluginRepositoryConfig) {
     if (authToken !== undefined && (username !== undefined || password !== undefined)) {
       throw new Error("Cannot specify both authToken and username/password auth");
     }

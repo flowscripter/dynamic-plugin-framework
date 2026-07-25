@@ -24,8 +24,12 @@ export { default as UrlListPluginRepository } from "./src/plugin_manager/plugin_
 export { default as LocalFolderPluginRepository } from "./src/plugin_manager/plugin_repository/LocalFolderPluginRepository.ts";
 export { default as HttpManifestPluginRepository } from "./src/plugin_manager/plugin_repository/HttpManifestPluginRepository.ts";
 export { default as NpmPluginRepository } from "./src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
+export type { NpmPluginRepositoryConfig } from "./src/plugin_manager/plugin_repository/NpmPluginRepository.ts";
 export { default as NpmjsPluginRepository } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
-export type { NpmSearchQuery } from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
+export type {
+  NpmSearchQuery,
+  NpmjsPluginRepositoryConfig,
+} from "./src/plugin_manager/plugin_repository/NpmjsPluginRepository.ts";
 export type { default as MarketplacePluginManager } from "./src/api/plugin_manager/MarketplacePluginManager.ts";
 export { default as BaseMarketplacePluginManager } from "./src/plugin_manager/BaseMarketplacePluginManager.ts";
 export { default as NpmPluginManager } from "./src/plugin_manager/NpmPluginManager.ts";

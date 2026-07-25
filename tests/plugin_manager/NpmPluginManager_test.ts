@@ -147,7 +147,10 @@ describe("NpmPluginManager", () => {
         }),
       );
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
 
       // bun remove in a dir without package.json will fail with non-zero exit
@@ -452,7 +455,10 @@ describe("NpmPluginManager", () => {
         }),
       );
 
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
 
       const calls: Array<{ command: ReadonlyArray<string>; cwd: string }> = [];
@@ -474,7 +480,10 @@ describe("NpmPluginManager", () => {
     });
 
     it("throws with the launch error message when the injected SpawnInterface fails to launch", async () => {
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
 
       const fakeSpawn: SpawnInterface = {
@@ -486,7 +495,10 @@ describe("NpmPluginManager", () => {
     });
 
     it("throws with the exit code when the injected SpawnInterface exits non-zero", async () => {
-      const repo = new NpmPluginRepository(nodeModulesDir, NAMESPACE);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
       const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
 
       const fakeSpawn: SpawnInterface = {

@@ -44,6 +44,11 @@ interface PackageJsonNamespaceData {
   pluginData?: Record<string, string>;
 }
 
+export interface NpmPluginRepositoryConfig {
+  nodeModulesPath: string;
+  packageJsonNamespace: string;
+}
+
 /**
  * {@link VersionedPluginRepository} backed by a local `node_modules` directory.
  *
@@ -52,10 +57,13 @@ interface PackageJsonNamespaceData {
  * dependencies, and pluginData. Used as the local installation target by {@link NpmPluginInstaller}.
  */
 export default class NpmPluginRepository implements VersionedPluginRepository {
-  public constructor(
-    public readonly nodeModulesPath: string,
-    public readonly packageJsonNamespace: string,
-  ) {}
+  public readonly nodeModulesPath: string;
+  public readonly packageJsonNamespace: string;
+
+  public constructor(config: NpmPluginRepositoryConfig) {
+    this.nodeModulesPath = config.nodeModulesPath;
+    this.packageJsonNamespace = config.packageJsonNamespace;
+  }
 
   private async *getPluginsAsyncIterable(): AsyncIterable<VersionedPluginDescriptor> {
     let topLevelDirs: string[];
