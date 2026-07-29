@@ -99,6 +99,7 @@ export default class NpmPluginManager
 
     const proc = Bun.spawn(resolveForPlatform(args), {
       cwd,
+      stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",
     });
