@@ -99,7 +99,11 @@ export default class NpmPluginManager
 
     const proc = Bun.spawn(resolveForPlatform(args), {
       cwd,
-      stdin: "inherit",
+      // Only inherit stdin when we actually have an interactive terminal to read a
+      // prompt from (e.g. bun's "trust dependencies with postinstall scripts?" prompt).
+      // Inheriting unconditionally hangs non-interactive invocations (CI, piped input)
+      // where the parent's stdin is an open, non-TTY stream that never reaches EOF.
+      stdin: process.stdin.isTTY ? "inherit" : "ignore",
       stdout: "inherit",
       stderr: "inherit",
     });
