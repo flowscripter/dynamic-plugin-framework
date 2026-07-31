@@ -31,6 +31,18 @@ export function resolveForPlatform(args: string[]): string[] {
   return ["cmd.exe", "/d", "/s", "/c", resolved, ...rest];
 }
 
+async function pumpToStdout(stream: ReadableStream<Uint8Array>): Promise<void> {
+  for await (const chunk of stream) {
+    process.stdout.write(chunk);
+  }
+}
+
+async function pumpToStderr(stream: ReadableStream<Uint8Array>): Promise<void> {
+  for await (const chunk of stream) {
+    process.stderr.write(chunk);
+  }
+}
+
 /**
  * {@link BaseMarketplacePluginManager} for the npm ecosystem.
  *
@@ -104,10 +116,22 @@ export default class NpmPluginManager
       // Inheriting unconditionally hangs non-interactive invocations (CI, piped input)
       // where the parent's stdin is an open, non-TTY stream that never reaches EOF.
       stdin: process.stdin.isTTY ? "inherit" : "ignore",
-      stdout: "inherit",
-      stderr: "inherit",
+      // "pipe" rather than "inherit": on Windows, "inherit" hands the child our own
+      // stdout/stderr OS handles, which get duplicated again into every process it
+      // spawns (cmd.exe -> bun.exe -> further helper processes). If any of those
+      // grandchildren doesn't close its copy promptly, a caller reading our output
+      // (e.g. Python's subprocess.communicate()) can block past the point where the
+      // whole visible process tree has already exited. "pipe" gives Bun its own
+      // dedicated pipe that never leaves this process, so we forward bytes ourselves
+      // instead of sharing the caller's handle down an uncontrolled process chain.
+      stdout: "pipe",
+      stderr: "pipe",
     });
-    const exitCode = await proc.exited;
+    const [, , exitCode] = await Promise.all([
+      pumpToStdout(proc.stdout),
+      pumpToStderr(proc.stderr),
+      proc.exited,
+    ]);
     if (exitCode !== 0) {
       throw new Error(`Command '${args.join(" ")}' failed with exit code ${exitCode}`);
     }
