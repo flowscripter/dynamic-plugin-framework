@@ -133,6 +133,52 @@ describe("NpmPluginManager", () => {
         "not found in any configured remote repository",
       );
     });
+
+    it("appends name@version to the install command when a specific version is requested", async () => {
+      const remote = new MockRemote([makeDescriptor("plugin-a", "3.0.0")]);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([remote] as unknown as NpmjsPluginRepository[], repo);
+
+      const calls: Array<{ command: ReadonlyArray<string>; cwd: string }> = [];
+      const fakeSpawn: SpawnInterface = {
+        spawn: (command, options) => {
+          calls.push({ command, cwd: options.cwd });
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await manager.install(makeDescriptor("plugin-a", "3.0.0"));
+
+      expect(calls[0].command).toContain("plugin-a@3.0.0");
+      expect(calls[0].command).not.toContain("plugin-a");
+    });
+
+    it("installs the bare pluginId when version is 'latest'", async () => {
+      const remote = new MockRemote([makeDescriptor("plugin-a", "latest")]);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([remote] as unknown as NpmjsPluginRepository[], repo);
+
+      const calls: Array<{ command: ReadonlyArray<string>; cwd: string }> = [];
+      const fakeSpawn: SpawnInterface = {
+        spawn: (command, options) => {
+          calls.push({ command, cwd: options.cwd });
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await manager.install(makeDescriptor("plugin-a", "latest"));
+
+      expect(calls[0].command).toContain("plugin-a");
+      expect(calls[0].command).not.toContain("plugin-a@latest");
+    });
   });
 
   describe("uninstall()", () => {
