@@ -177,7 +177,11 @@ export default class NpmPluginManager
 
     const cwd = path.dirname(target.nodeModulesPath);
     await mkdir(cwd, { recursive: true });
-    const cmdParts = [...this.installCommand.split(" "), descriptor.pluginId];
+    const installArg =
+      descriptor.version && descriptor.version !== "latest"
+        ? `${descriptor.pluginId}@${descriptor.version}`
+        : descriptor.pluginId;
+    const cmdParts = [...this.installCommand.split(" "), installArg];
     await this.runCommand(cmdParts, cwd);
     await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }
