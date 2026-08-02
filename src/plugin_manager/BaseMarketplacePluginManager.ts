@@ -85,6 +85,16 @@ export default abstract class BaseMarketplacePluginManager<
 
   public abstract uninstall(pluginId: string): Promise<void>;
 
+  public async checkAvailable(pluginId: string, version?: string): Promise<boolean> {
+    for (const remote of this.remotes) {
+      const descriptor = await remote.getPlugin(pluginId);
+      if (descriptor && (version === undefined || descriptor.version === version)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private async *checkForUpdatesIterable(
     remote: VersionedPluginRepository,
   ): AsyncIterable<{ descriptor: Readonly<VersionedPluginDescriptor>; availableVersion: string }> {
