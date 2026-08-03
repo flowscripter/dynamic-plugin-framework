@@ -50,6 +50,28 @@ export default interface MarketplacePluginManager extends PluginManager {
   listInstalled(): AsyncIterable<Readonly<VersionedPluginDescriptor>>;
 
   /**
+   * Check whether a plugin (and, optionally, a specific version of it) is available from any of
+   * the configured remote marketplace repositories, via a direct targeted lookup - not the
+   * fuzzy/ranked {@link search}.
+   *
+   * Each remote is checked in order via its {@link MarketplacePluginRepository.getPlugin}, which
+   * performs a targeted lookup rather than scanning all plugins. Returns `true` as soon as any
+   * remote has a match.
+   *
+   * Note: a `MarketplacePluginRepository` exposes a single "current" {@link VersionedPluginDescriptor}
+   * per plugin ID (typically the latest published version), not a full version history. When
+   * `version` is given, this checks whether that current version matches - it does not confirm
+   * whether an older version was ever published.
+   *
+   * @param pluginId the plugin ID to check for (as returned by {@link VersionedPluginDescriptor.pluginId}).
+   * @param version optional exact version to additionally check for.
+   *
+   * @return `true` if the plugin (and version, if given) is found in at least one configured remote,
+   * `false` otherwise.
+   */
+  checkAvailable(pluginId: string, version?: string): Promise<boolean>;
+
+  /**
    * Compare the local repository against a remote repository and yield entries where a newer
    * version is available remotely.
    *

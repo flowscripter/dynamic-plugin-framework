@@ -299,6 +299,70 @@ describe("NpmPluginManager", () => {
     });
   });
 
+  describe("checkAvailable()", () => {
+    it("returns true when the plugin is found on the first remote", async () => {
+      const remote1 = new MockRemote([makeDescriptor("my-plugin", "1.0.0", "my-plugin")]);
+      const remote2 = new MockRemote([]);
+      const manager = new NpmPluginManager(
+        [remote1, remote2] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin")).toEqual(true);
+    });
+
+    it("returns true when the plugin is found on a later remote after an earlier miss", async () => {
+      const remote1 = new MockRemote([]);
+      const remote2 = new MockRemote([makeDescriptor("my-plugin", "1.0.0", "my-plugin")]);
+      const manager = new NpmPluginManager(
+        [remote1, remote2] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin")).toEqual(true);
+    });
+
+    it("returns false when the plugin is not found on any remote", async () => {
+      const remote1 = new MockRemote([makeDescriptor("other-plugin")]);
+      const remote2 = new MockRemote([]);
+      const manager = new NpmPluginManager(
+        [remote1, remote2] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin")).toEqual(false);
+    });
+
+    it("returns false when no remotes are configured", async () => {
+      const manager = new NpmPluginManager(
+        [] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin")).toEqual(false);
+    });
+
+    it("returns true when the requested version matches the remote's current version", async () => {
+      const remote = new MockRemote([makeDescriptor("my-plugin", "1.2.3", "my-plugin")]);
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin", "1.2.3")).toEqual(true);
+    });
+
+    it("returns false when the requested version does not match the remote's current version", async () => {
+      const remote = new MockRemote([makeDescriptor("my-plugin", "1.2.3", "my-plugin")]);
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      expect(await manager.checkAvailable("my-plugin", "9.9.9")).toEqual(false);
+    });
+  });
+
   describe("registerExtensions() / getRegisteredExtensions()", () => {
     it("returns empty array for unregistered extension point after registerExtensions", async () => {
       const manager = new NpmPluginManager(
