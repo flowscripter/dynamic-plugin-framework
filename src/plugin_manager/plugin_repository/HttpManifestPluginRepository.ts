@@ -5,6 +5,7 @@ import type VersionedPluginDescriptor from "../../api/plugin_repository/Versione
 import type SearchQuery from "../../api/plugin_repository/SearchQuery.ts";
 import type FetchCapable from "../../api/fetch/FetchCapable.ts";
 import type FetchInterface from "../../api/fetch/FetchInterface.ts";
+import defaultFetch from "../../api/fetch/defaultFetch.ts";
 import loadPlugin from "../util/PluginLoader.ts";
 
 interface RemoteManifestEntry {
@@ -34,7 +35,7 @@ export default class HttpManifestPluginRepository
 
   private readonly cacheFolder: string;
   private cachedManifest: RemoteManifestEntry[] | undefined;
-  private fetchFn: FetchInterface["fetch"] = (input, init) => fetch(input, init);
+  private fetchFn: FetchInterface["fetch"] = defaultFetch;
 
   public constructor({
     manifestUrl,
