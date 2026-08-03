@@ -15,14 +15,32 @@ export const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
  * {@link FetchInterface} has been set via {@link FetchCapable.setFetch}.
  *
  * Delegates to native `fetch()`, but always applies a timeout: `init.timeoutMs` if given,
- * otherwise {@link DEFAULT_FETCH_TIMEOUT_MS}. If the caller also supplies `init.signal`, both
- * signals are combined via `AbortSignal.any()` so that either aborting the caller's signal or
- * hitting the timeout aborts the request.
+ * otherwise {@link DEFAULT_FETCH_TIMEOUT_MS}. If the caller also supplies `init.signal`, aborting
+ * either the caller's signal or the timeout aborts the request.
+ *
+ * Implemented with a manual `setTimeout()` + `AbortController` (rather than `AbortSignal.timeout()`
+ * / `AbortSignal.any()`) for maximum cross-platform portability, and the timer is always cleared
+ * once the fetch settles so no dangling timer can keep the process/event-loop alive.
  */
-const defaultFetch: FetchInterface["fetch"] = (input, init) => {
-  const timeoutSignal = AbortSignal.timeout(init?.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS);
-  const signal = init?.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
-  return fetch(input, { ...init, signal });
+const defaultFetch: FetchInterface["fetch"] = async (input, init) => {
+  const controller = new AbortController();
+  const onCallerAbort = () => controller.abort(init?.signal?.reason);
+  if (init?.signal?.aborted) {
+    onCallerAbort();
+  } else {
+    init?.signal?.addEventListener("abort", onCallerAbort);
+  }
+
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException("The operation timed out.", "TimeoutError"));
+  }, init?.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener("abort", onCallerAbort);
+  }
 };
 
 export default defaultFetch;
