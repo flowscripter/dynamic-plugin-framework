@@ -5,6 +5,7 @@ import type VersionedPluginDescriptor from "../../api/plugin_repository/Versione
 import type SearchQuery from "../../api/plugin_repository/SearchQuery.ts";
 import type FetchCapable from "../../api/fetch/FetchCapable.ts";
 import type FetchInterface from "../../api/fetch/FetchInterface.ts";
+import defaultFetch from "../../api/fetch/defaultFetch.ts";
 
 export interface NpmSearchQuery extends SearchQuery {
   readonly keywords?: string[];
@@ -62,7 +63,7 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
   private readonly authToken?: string;
   private readonly username?: string;
   private readonly password?: string;
-  private fetchFn: FetchInterface["fetch"] = (input, init) => fetch(input, init);
+  private fetchFn: FetchInterface["fetch"] = defaultFetch;
 
   public constructor({
     name,
