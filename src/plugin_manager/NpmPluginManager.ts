@@ -31,6 +31,17 @@ export function resolveForPlatform(args: string[]): string[] {
   return ["cmd.exe", "/d", "/s", "/c", resolved, ...rest];
 }
 
+/**
+ * Default timeout applied to an install/uninstall command spawn.
+ *
+ * Resolving and downloading a dependency tree can legitimately take a while on a slow
+ * connection, so this is generous compared to the registry pre-check timeout used by
+ * `checkAvailable()` (10s, see `defaultFetch.ts`'s `DEFAULT_FETCH_TIMEOUT_MS`) - but it must
+ * still be bounded so a stalled network connection during the package manager's own registry
+ * access fails with a clear error instead of hanging the calling process indefinitely.
+ */
+export const DEFAULT_INSTALL_TIMEOUT_MS = 120_000;
+
 async function pumpToStdout(stream: ReadableStream<Uint8Array>): Promise<void> {
   for await (const chunk of stream) {
     process.stdout.write(chunk);
@@ -56,6 +67,7 @@ export default class NpmPluginManager
   implements SpawnCapable
 {
   private readonly installCommand: string;
+  private readonly installTimeoutMs: number;
   private spawn: SpawnInterface | undefined;
 
   /**
@@ -66,6 +78,8 @@ export default class NpmPluginManager
    * `npm` is on `PATH` instead. Throws if neither is found and no explicit command is given.
    * @param options.pluginManager optional {@link PluginManager} to delegate to; see
    * {@link BaseMarketplacePluginManager}.
+   * @param options.installTimeoutMs optional timeout applied to each install/uninstall command
+   * spawn; defaults to {@link DEFAULT_INSTALL_TIMEOUT_MS}.
    */
   public constructor(
     remotes: NpmjsPluginRepository[],
@@ -73,10 +87,12 @@ export default class NpmPluginManager
     {
       installCommand,
       pluginManager,
-    }: { installCommand?: string; pluginManager?: PluginManager } = {},
+      installTimeoutMs,
+    }: { installCommand?: string; pluginManager?: PluginManager; installTimeoutMs?: number } = {},
   ) {
     super(remotes, local, pluginManager);
     this.installCommand = installCommand ?? NpmPluginManager.resolveDefaultInstallCommand();
+    this.installTimeoutMs = installTimeoutMs ?? DEFAULT_INSTALL_TIMEOUT_MS;
     const binary = this.installCommand.split(" ")[0]!;
     if (!Bun.which(binary)) {
       throw new Error(
@@ -99,8 +115,11 @@ export default class NpmPluginManager
 
   private async runCommand(args: string[], cwd: string): Promise<void> {
     if (this.spawn) {
-      const result = await this.spawn.spawn(args, { cwd });
+      const result = await this.spawn.spawn(args, { cwd, timeoutMs: this.installTimeoutMs });
       if (!result.ok) {
+        if (result.timedOut) {
+          throw new Error(`Command '${args.join(" ")}' timed out after ${this.installTimeoutMs}ms`);
+        }
         if (result.error) {
           throw new Error(`Command '${args.join(" ")}' failed to launch: ${result.error.message}`);
         }
@@ -127,11 +146,32 @@ export default class NpmPluginManager
       stdout: "pipe",
       stderr: "pipe",
     });
-    const [, , exitCode] = await Promise.all([
-      pumpToStdout(proc.stdout),
-      pumpToStderr(proc.stderr),
-      proc.exited,
-    ]);
+
+    // No injected SpawnInterface to enforce a timeout for us here, so do it manually: a plain
+    // setTimeout()/proc.kill() rather than AbortSignal.timeout() for the same cross-platform
+    // portability reasons as defaultFetch.ts's timeout (established Bun-on-Windows unreliability
+    // during the earlier fetch-timeout investigation). The timer is always cleared once the
+    // process exits so no dangling timer is left behind.
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill();
+    }, this.installTimeoutMs);
+
+    let exitCode: number;
+    try {
+      [, , exitCode] = await Promise.all([
+        pumpToStdout(proc.stdout),
+        pumpToStderr(proc.stderr),
+        proc.exited,
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (timedOut) {
+      throw new Error(`Command '${args.join(" ")}' timed out after ${this.installTimeoutMs}ms`);
+    }
     if (exitCode !== 0) {
       throw new Error(`Command '${args.join(" ")}' failed with exit code ${exitCode}`);
     }
