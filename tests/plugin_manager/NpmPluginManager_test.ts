@@ -618,5 +618,80 @@ describe("NpmPluginManager", () => {
 
       await expect(manager.uninstall("my-plugin")).rejects.toThrow("failed with exit code 7");
     });
+
+    it("passes installTimeoutMs through to the injected SpawnInterface", async () => {
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo, {
+        installTimeoutMs: 5_000,
+      });
+
+      const calls: Array<{ timeoutMs: number | undefined }> = [];
+      const fakeSpawn: SpawnInterface = {
+        spawn: (_command, options) => {
+          calls.push({ timeoutMs: options.timeoutMs });
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await manager.uninstall("my-plugin");
+
+      expect(calls[0].timeoutMs).toEqual(5_000);
+    });
+
+    it("throws a clear timeout error when the injected SpawnInterface reports timedOut", async () => {
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo, {
+        installTimeoutMs: 5_000,
+      });
+
+      const fakeSpawn: SpawnInterface = {
+        spawn: () => Promise.resolve({ ok: false, timedOut: true }),
+      };
+      manager.setSpawn(fakeSpawn);
+
+      await expect(manager.uninstall("my-plugin")).rejects.toThrow("timed out after 5000ms");
+    });
+  });
+
+  describe("raw Bun.spawn fallback timeout (no injected SpawnInterface)", () => {
+    it("completes normally when the command finishes within installTimeoutMs", async () => {
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo, {
+        installCommand: `${process.execPath} -e`,
+        installTimeoutMs: 10_000,
+      });
+
+      // installCommand's binary is process.execPath, so the "package" arg becomes an inline
+      // script that exits immediately - exercises the real Bun.spawn path without hanging.
+      await expect(manager.uninstall('console.log("noop")')).resolves.toBeUndefined();
+    });
+
+    it("kills a hanging command and throws a clear timeout error instead of hanging forever", async () => {
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo, {
+        installCommand: `${process.execPath} -e`,
+        installTimeoutMs: 50,
+      });
+
+      // Deliberately hangs forever - exercises the timeout kill path. A short installTimeoutMs
+      // (50ms) keeps this test fast; if the timeout mechanism were broken this test would hang
+      // rather than fail cleanly.
+      await expect(manager.uninstall("await new Promise(() => {})")).rejects.toThrow(
+        "timed out after 50ms",
+      );
+    });
   });
 });
