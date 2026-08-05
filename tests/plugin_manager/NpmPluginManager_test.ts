@@ -183,25 +183,76 @@ describe("NpmPluginManager", () => {
 
   describe("uninstall()", () => {
     it("throws when the remove command fails", async () => {
-      await mkdir(path.join(nodeModulesDir, "my-plugin"), { recursive: true });
-      await Bun.write(
-        path.join(nodeModulesDir, "my-plugin", "package.json"),
-        JSON.stringify({
-          name: "my-plugin",
-          version: "1.0.0",
-          [NAMESPACE]: { extensionPoints: ["ep1"] },
-        }),
-      );
-
       const repo = new NpmPluginRepository({
         nodeModulesPath: nodeModulesDir,
         packageJsonNamespace: NAMESPACE,
       });
       const manager = new NpmPluginManager([] as unknown as NpmjsPluginRepository[], repo);
 
-      // bun remove in a dir without package.json will fail with non-zero exit
-      await expect(manager.uninstall("my-plugin")).rejects.toThrow();
+      // an unrecognised dependency specifier makes real `bun remove` exit non-zero
+      // regardless of package.json/node_modules state.
+      await expect(manager.uninstall("not a valid package name!!")).rejects.toThrow();
     });
+  });
+
+  describe("ancestor package.json regression (real bun spawn)", () => {
+    it(
+      "installs into the plugin repository's own directory, not an ancestor's, when an " +
+        "ancestor package.json exists above it",
+      async () => {
+        // Regression test for https://github.com/flowscripter/dynamic-cli-framework/issues/166:
+        // without its own package.json, `bun add` walks UP the directory tree, finds the
+        // ancestor's package.json, and installs there instead of into `cwd` - while still
+        // exiting 0. Uses a real (non-mocked) spawn of the actual `bun` binary, and a local
+        // file-path "package" instead of a registry package, so this stays network-free.
+        const root = await mkdtemp(path.join(tmpdir(), "npm-manager-ancestor-test-"));
+        try {
+          await Bun.write(
+            path.join(root, "package.json"),
+            JSON.stringify({ name: "ancestor", version: "1.0.0" }),
+          );
+
+          const fixturePkgDir = path.join(root, "fixture-pkg");
+          await mkdir(fixturePkgDir, { recursive: true });
+          await Bun.write(
+            path.join(fixturePkgDir, "package.json"),
+            JSON.stringify({ name: "fixture-pkg", version: "1.0.0", main: "index.js" }),
+          );
+          await Bun.write(path.join(fixturePkgDir, "index.js"), "module.exports = 1;\n");
+
+          // Deliberately nested below `root` with no package.json of its own, and not
+          // pre-created - installOne() must create it.
+          const nodeModulesPath = path.join(root, "nested", "plugins", "node_modules");
+
+          const repo = new NpmPluginRepository({
+            nodeModulesPath,
+            packageJsonNamespace: NAMESPACE,
+          });
+          const descriptor = makeDescriptor(fixturePkgDir, "latest");
+          const remote = new MockRemote([descriptor]);
+          const manager = new NpmPluginManager(
+            [remote] as unknown as NpmjsPluginRepository[],
+            repo,
+          );
+          // no setSpawn(): exercises the real Bun.spawn("bun", "add", ...) path.
+
+          await manager.install(descriptor);
+
+          const installedAtTarget = await Bun.file(
+            path.join(nodeModulesPath, "fixture-pkg", "package.json"),
+          ).exists();
+          expect(installedAtTarget).toBe(true);
+
+          const installedAtAncestor = await Bun.file(
+            path.join(root, "node_modules", "fixture-pkg", "package.json"),
+          ).exists();
+          expect(installedAtAncestor).toBe(false);
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      },
+      30000,
+    );
   });
 
   describe("checkForUpdates()", () => {
