@@ -113,6 +113,22 @@ export default class NpmPluginManager
     this.spawn = spawn;
   }
 
+  /**
+   * Ensures `cwd` has its own `package.json` before an install/uninstall command is run there.
+   *
+   * Without one, `bun add`/`bun remove` (and npm, under workspace configs) walk UP the
+   * directory tree looking for an ancestor `package.json` and, if found, treat that
+   * ancestor as the install root - silently installing into the ancestor's `node_modules`
+   * instead of `cwd`, while still exiting 0. Seeding an empty `package.json` in `cwd` first
+   * makes `cwd` itself the install root, regardless of what exists further up the tree.
+   */
+  private async ensurePackageJson(cwd: string): Promise<void> {
+    const pkgJsonPath = path.join(cwd, "package.json");
+    const pkgFile = Bun.file(pkgJsonPath);
+    if (await pkgFile.exists()) return;
+    await Bun.write(pkgJsonPath, JSON.stringify({ name: "plugins", private: true }, null, 2));
+  }
+
   private async runCommand(args: string[], cwd: string): Promise<void> {
     if (this.spawn) {
       const result = await this.spawn.spawn(args, { cwd, timeoutMs: this.installTimeoutMs });
@@ -241,6 +257,7 @@ export default class NpmPluginManager
 
     const cwd = path.dirname(target.nodeModulesPath);
     await mkdir(cwd, { recursive: true });
+    await this.ensurePackageJson(cwd);
     const installArg =
       descriptor.version && descriptor.version !== "latest"
         ? `${descriptor.pluginId}@${descriptor.version}`
@@ -299,6 +316,7 @@ export default class NpmPluginManager
 
     const cwd = path.dirname(this.local.nodeModulesPath);
     await mkdir(cwd, { recursive: true });
+    await this.ensurePackageJson(cwd);
     let removeCmd: string;
     if (this.installCommand.startsWith("bun")) {
       removeCmd = "bun remove";
