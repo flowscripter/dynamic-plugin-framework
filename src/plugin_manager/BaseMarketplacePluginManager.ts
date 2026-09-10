@@ -87,7 +87,7 @@ export default abstract class BaseMarketplacePluginManager<
 
   public async checkAvailable(pluginId: string, version?: string): Promise<boolean> {
     for (const remote of this.remotes) {
-      const descriptor = await remote.getPlugin(pluginId);
+      const descriptor = await remote.getPlugin(pluginId, version);
       if (descriptor && (version === undefined || descriptor.version === version)) {
         return true;
       }

@@ -261,6 +261,30 @@ describe("NpmjsPluginRepository Tests", () => {
       expect(result!.name).toEqual("scoped-plugin");
       expect(result!.scope).toEqual("myscope");
     });
+
+    it("fetches the requested version instead of always fetching latest", async () => {
+      const fetchMock = mock((url: string | URL | Request) => {
+        const urlStr = url.toString();
+        expect(urlStr).toContain("/my-plugin/1.2.3");
+        expect(urlStr).not.toContain("/latest");
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "my-plugin",
+              version: "1.2.3",
+              keywords: [NAMESPACE],
+              [NAMESPACE]: { extensionPoints: ["ep1"] },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await repo.getPlugin("my-plugin", "1.2.3");
+      expect(result!.version).toEqual("1.2.3");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getExtensionDescriptorFromExtensionEntry()", () => {

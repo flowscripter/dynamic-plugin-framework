@@ -127,10 +127,16 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
     return meta;
   }
 
-  private async fetchPackageDoc(packageName: string): Promise<Record<string, unknown> | undefined> {
-    const response = await this.fetchFn(`${this.registryUrl}/${packageName}/latest`, {
-      headers: this.buildHeaders(),
-    });
+  private async fetchPackageDoc(
+    packageName: string,
+    version?: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    const response = await this.fetchFn(
+      `${this.registryUrl}/${packageName}/${version ?? "latest"}`,
+      {
+        headers: this.buildHeaders(),
+      },
+    );
     if (!response.ok) {
       return undefined;
     }
@@ -191,8 +197,9 @@ export default class NpmjsPluginRepository implements MarketplacePluginRepositor
 
   public async getPlugin(
     pluginId: string,
+    version?: string,
   ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
-    const doc = await this.fetchPackageDoc(pluginId);
+    const doc = await this.fetchPackageDoc(pluginId, version);
     if (!doc) return undefined;
 
     const keywords = doc["keywords"] as string[] | undefined;

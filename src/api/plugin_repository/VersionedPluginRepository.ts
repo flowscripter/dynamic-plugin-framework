@@ -22,8 +22,15 @@ export default interface VersionedPluginRepository extends PluginRepository {
    * should perform a targeted lookup rather than scanning the full result of {@link getPlugins}.
    *
    * @param pluginId the plugin ID to look up (as returned by {@link VersionedPluginDescriptor.pluginId}).
+   * @param version an optional specific version to look up. Implementations that don't support
+   * targeted version lookups may ignore this and return their default (e.g. latest) version;
+   * callers needing an exact-version match should still compare the returned descriptor's
+   * `version` field.
    *
    * @return the matching {@link VersionedPluginDescriptor}, or `undefined` if not found.
    */
-  getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined>;
+  getPlugin(
+    pluginId: string,
+    version?: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined>;
 }

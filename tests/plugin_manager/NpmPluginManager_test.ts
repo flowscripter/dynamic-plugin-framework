@@ -32,6 +32,8 @@ function makeDescriptor(
 }
 
 class MockRemote {
+  public readonly receivedVersions: Array<string | undefined> = [];
+
   constructor(public readonly descriptors: VersionedPluginDescriptor[]) {}
 
   async *search(_query: SearchQuery): AsyncIterable<Readonly<VersionedPluginDescriptor>> {
@@ -42,7 +44,11 @@ class MockRemote {
     yield* this.descriptors;
   }
 
-  async getPlugin(pluginId: string): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+  async getPlugin(
+    pluginId: string,
+    version?: string,
+  ): Promise<Readonly<VersionedPluginDescriptor> | undefined> {
+    this.receivedVersions.push(version);
     return this.descriptors.find((d) => (d.scope ? `${d.scope}/${d.name}` : d.name) === pluginId);
   }
 
@@ -411,6 +417,18 @@ describe("NpmPluginManager", () => {
       );
 
       expect(await manager.checkAvailable("my-plugin", "9.9.9")).toEqual(false);
+    });
+
+    it("passes the requested version through to the remote's getPlugin() for a targeted lookup", async () => {
+      const remote = new MockRemote([makeDescriptor("my-plugin", "1.2.3", "my-plugin")]);
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        new MockLocal() as unknown as NpmPluginRepository,
+      );
+
+      await manager.checkAvailable("my-plugin", "1.2.3");
+
+      expect(remote.receivedVersions).toEqual(["1.2.3"]);
     });
   });
 
