@@ -52,8 +52,8 @@
     "@types/bun": "^1.4.2",
     "@types/node": "^26.5.1",
     "@types/semver": "^7.8.0",
-    "oxfmt": "0.67.0",
-    "oxlint": "1.82.0"
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
