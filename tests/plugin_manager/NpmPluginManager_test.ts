@@ -501,72 +501,105 @@ describe("NpmPluginManager", () => {
       spyOn(Bun, "which").mockRestore();
     });
 
-    it("defaults to 'bun add' when bun is on PATH", () => {
+    function makeManager(installCommand?: string) {
+      const remote = new MockRemote([makeDescriptor("plugin-a")]);
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager(
+        [remote] as unknown as NpmjsPluginRepository[],
+        repo,
+        installCommand === undefined ? {} : { installCommand },
+      );
+      const calls: Array<ReadonlyArray<string>> = [];
+      manager.setSpawn({
+        spawn: (command) => {
+          calls.push(command);
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      });
+      return { manager, calls };
+    }
+
+    it("defaults to 'bun add' when bun is on PATH", async () => {
       spyOn(Bun, "which").mockImplementation((binary: string) =>
         binary === "bun" ? "/usr/bin/bun" : null,
       );
+      const { manager, calls } = makeManager();
 
-      expect(
-        () =>
-          new NpmPluginManager(
-            [] as unknown as NpmjsPluginRepository[],
-            new MockLocal() as unknown as NpmPluginRepository,
-          ),
-      ).not.toThrow();
+      await manager.install(makeDescriptor("plugin-a"));
+
+      expect(calls[0]).toEqual(["bun", "add", "plugin-a@1.0.0"]);
     });
 
-    it("falls back to 'npm install' when bun is not on PATH but npm is", () => {
+    it("falls back to 'npm install' when bun is not on PATH but npm is", async () => {
       spyOn(Bun, "which").mockImplementation((binary: string) =>
         binary === "npm" ? "/usr/bin/npm" : null,
       );
+      const { manager, calls } = makeManager();
 
-      expect(
-        () =>
-          new NpmPluginManager(
-            [] as unknown as NpmjsPluginRepository[],
-            new MockLocal() as unknown as NpmPluginRepository,
-          ),
-      ).not.toThrow();
+      await manager.install(makeDescriptor("plugin-a"));
+
+      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
     });
 
-    it("throws when neither bun nor npm is on PATH and no installCommand is given", () => {
+    it("constructs without error when neither bun nor npm is on PATH", () => {
       spyOn(Bun, "which").mockImplementation(() => null);
 
-      expect(
-        () =>
-          new NpmPluginManager(
-            [] as unknown as NpmjsPluginRepository[],
-            new MockLocal() as unknown as NpmPluginRepository,
-          ),
-      ).toThrow("Neither 'bun' nor 'npm' found on PATH");
+      expect(() => makeManager()).not.toThrow();
     });
 
-    it("uses an explicit installCommand even when its binary would not be the auto-detected default", () => {
-      spyOn(Bun, "which").mockImplementation((binary: string) =>
-        binary === "npm" ? "/usr/bin/npm" : null,
+    it("rejects install() when neither bun nor npm is on PATH and no installCommand is given", async () => {
+      spyOn(Bun, "which").mockImplementation(() => null);
+      const { manager, calls } = makeManager();
+
+      await expect(manager.install(makeDescriptor("plugin-a"))).rejects.toThrow(
+        "Neither 'bun' nor 'npm' found on PATH",
+      );
+      expect(calls).toEqual([]);
+    });
+
+    it("rejects uninstall() when neither bun nor npm is on PATH and no installCommand is given", async () => {
+      spyOn(Bun, "which").mockImplementation(() => null);
+      const { manager, calls } = makeManager();
+
+      await expect(manager.uninstall("plugin-a")).rejects.toThrow(
+        "Neither 'bun' nor 'npm' found on PATH",
+      );
+      expect(calls).toEqual([]);
+    });
+
+    it("resolves the default command once a package manager is available on PATH", async () => {
+      const which = spyOn(Bun, "which").mockImplementation(() => null);
+      const { manager, calls } = makeManager();
+      await expect(manager.install(makeDescriptor("plugin-a"))).rejects.toThrow(
+        "Neither 'bun' nor 'npm' found on PATH",
       );
 
-      expect(
-        () =>
-          new NpmPluginManager(
-            [] as unknown as NpmjsPluginRepository[],
-            new MockLocal() as unknown as NpmPluginRepository,
-            { installCommand: "npm install" },
-          ),
-      ).not.toThrow();
+      which.mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
+      await manager.install(makeDescriptor("plugin-a"));
+
+      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
     });
 
-    it("throws when an explicit installCommand's binary is not on PATH", () => {
-      spyOn(Bun, "which").mockImplementation(() => null);
+    it("uses an explicit installCommand even when its binary would not be the auto-detected default", async () => {
+      spyOn(Bun, "which").mockImplementation(() => "/usr/bin/found");
+      const { manager, calls } = makeManager("npm install");
 
-      expect(
-        () =>
-          new NpmPluginManager(
-            [] as unknown as NpmjsPluginRepository[],
-            new MockLocal() as unknown as NpmPluginRepository,
-            { installCommand: "yarn add" },
-          ),
-      ).toThrow("Install command binary 'yarn' not found on PATH");
+      await manager.install(makeDescriptor("plugin-a"));
+
+      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
+    });
+
+    it("rejects install() when an explicit installCommand's binary is not on PATH", async () => {
+      spyOn(Bun, "which").mockImplementation(() => null);
+      const { manager, calls } = makeManager("yarn add");
+
+      await expect(manager.install(makeDescriptor("plugin-a"))).rejects.toThrow(
+        "Install command binary 'yarn' not found on PATH",
+      );
+      expect(calls).toEqual([]);
     });
   });
 

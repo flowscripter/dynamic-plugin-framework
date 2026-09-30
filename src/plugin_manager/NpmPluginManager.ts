@@ -66,7 +66,8 @@ export default class NpmPluginManager
   extends BaseMarketplacePluginManager<NpmjsPluginRepository, NpmPluginRepository>
   implements SpawnCapable
 {
-  private readonly installCommand: string;
+  private readonly configuredInstallCommand: string | undefined;
+  private resolvedInstallCommand: string | undefined;
   private readonly installTimeoutMs: number;
   private spawn: SpawnInterface | undefined;
 
@@ -75,7 +76,9 @@ export default class NpmPluginManager
    * @param local repository used to load installed plugins, backed by `node_modules`.
    * @param options.installCommand optional install command (e.g. `"npm install"`). If not
    * specified, `"bun add"` is used if `bun` is on `PATH`, falling back to `"npm install"` if
-   * `npm` is on `PATH` instead. Throws if neither is found and no explicit command is given.
+   * `npm` is on `PATH` instead. The command is resolved and its binary checked against `PATH`
+   * only when an install or uninstall is performed, so construction never fails because a
+   * package manager is missing; {@link install} and {@link uninstall} reject instead.
    * @param options.pluginManager optional {@link PluginManager} to delegate to; see
    * {@link BaseMarketplacePluginManager}.
    * @param options.installTimeoutMs optional timeout applied to each install/uninstall command
@@ -91,14 +94,26 @@ export default class NpmPluginManager
     }: { installCommand?: string; pluginManager?: PluginManager; installTimeoutMs?: number } = {},
   ) {
     super(remotes, local, pluginManager);
-    this.installCommand = installCommand ?? NpmPluginManager.resolveDefaultInstallCommand();
+    this.configuredInstallCommand = installCommand;
     this.installTimeoutMs = installTimeoutMs ?? DEFAULT_INSTALL_TIMEOUT_MS;
-    const binary = this.installCommand.split(" ")[0]!;
+  }
+
+  /**
+   * Returns the install command, resolving it on first use. Throws if no package manager is
+   * available on `PATH`.
+   */
+  private getInstallCommand(): string {
+    if (this.resolvedInstallCommand !== undefined) return this.resolvedInstallCommand;
+    const command =
+      this.configuredInstallCommand ?? NpmPluginManager.resolveDefaultInstallCommand();
+    const binary = command.split(" ")[0]!;
     if (!Bun.which(binary)) {
       throw new Error(
         `Install command binary '${binary}' not found on PATH; cannot install plugins`,
       );
     }
+    this.resolvedInstallCommand = command;
+    return command;
   }
 
   private static resolveDefaultInstallCommand(): string {
@@ -197,6 +212,8 @@ export default class NpmPluginManager
     descriptor: Readonly<VersionedPluginDescriptor>,
     options?: { includeDependencies?: boolean },
   ): Promise<void> {
+    // Fail before any remote lookup or filesystem changes if no package manager is available.
+    this.getInstallCommand();
     let source: VersionedPluginRepository | undefined;
     for (const remote of this.remotes) {
       for await (const d of remote.getPlugins()) {
@@ -262,7 +279,7 @@ export default class NpmPluginManager
       descriptor.version && descriptor.version !== "latest"
         ? `${descriptor.pluginId}@${descriptor.version}`
         : descriptor.pluginId;
-    const cmdParts = [...this.installCommand.split(" "), installArg];
+    const cmdParts = [...this.getInstallCommand().split(" "), installArg];
     await this.runCommand(cmdParts, cwd);
     await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }
@@ -289,12 +306,12 @@ export default class NpmPluginManager
 
     // No bundled entry found — uninstall and surface a clear error.
     let removeCmd: string;
-    if (this.installCommand.startsWith("bun")) {
+    if (this.getInstallCommand().startsWith("bun")) {
       removeCmd = "bun remove";
-    } else if (this.installCommand.startsWith("npm")) {
+    } else if (this.getInstallCommand().startsWith("npm")) {
       removeCmd = "npm uninstall";
     } else {
-      removeCmd = this.installCommand.replace(/add|install/, "remove");
+      removeCmd = this.getInstallCommand().replace(/add|install/, "remove");
     }
     await this.runCommand([...removeCmd.split(" "), pluginId], cwd);
     throw new Error(
@@ -303,6 +320,8 @@ export default class NpmPluginManager
   }
 
   public async uninstall(pluginId: string): Promise<void> {
+    // Fail before any filesystem changes if no package manager is available.
+    const installCommand = this.getInstallCommand();
     for await (const plugin of this.local.getPlugins()) {
       if (plugin.pluginId === pluginId) continue;
       if (!plugin.dependencies) continue;
@@ -318,17 +337,17 @@ export default class NpmPluginManager
     await mkdir(cwd, { recursive: true });
     await this.ensurePackageJson(cwd);
     let removeCmd: string;
-    if (this.installCommand.startsWith("bun")) {
+    if (installCommand.startsWith("bun")) {
       removeCmd = "bun remove";
-    } else if (this.installCommand.startsWith("npm")) {
+    } else if (installCommand.startsWith("npm")) {
       removeCmd = "npm uninstall";
     } else {
-      removeCmd = this.installCommand.replace(/add|install/, "remove");
+      removeCmd = installCommand.replace(/add|install/, "remove");
     }
     const cmdParts = [...removeCmd.split(" "), pluginId];
     await this.runCommand(cmdParts, cwd);
 
-    if (this.installCommand.startsWith("bun")) {
+    if (installCommand.startsWith("bun")) {
       // bun does not prune node_modules of packages orphaned by removal, leaving stale
       // transitive dependencies on disk even though the lockfile is correct.
       // See https://github.com/oven-sh/bun/issues/3605
