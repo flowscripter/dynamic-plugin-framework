@@ -206,8 +206,7 @@ describe("NpmPluginManager", () => {
       "installs into the plugin repository's own directory, not an ancestor's, when an " +
         "ancestor package.json exists above it",
       async () => {
-        // Regression test for https://github.com/flowscripter/dynamic-cli-framework/issues/166:
-        // without its own package.json, `bun add` walks UP the directory tree, finds the
+        // Without its own package.json, `bun add` walks UP the directory tree, finds the
         // ancestor's package.json, and installs there instead of into `cwd` - while still
         // exiting 0. Uses a real (non-mocked) spawn of the actual `bun` binary, and a local
         // file-path "package" instead of a registry package, so this stays network-free.

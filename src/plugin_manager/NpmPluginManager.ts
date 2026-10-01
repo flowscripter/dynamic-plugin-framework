@@ -180,9 +180,8 @@ export default class NpmPluginManager
 
     // No injected SpawnInterface to enforce a timeout for us here, so do it manually: a plain
     // setTimeout()/proc.kill() rather than AbortSignal.timeout() for the same cross-platform
-    // portability reasons as defaultFetch.ts's timeout (established Bun-on-Windows unreliability
-    // during the earlier fetch-timeout investigation). The timer is always cleared once the
-    // process exits so no dangling timer is left behind.
+    // portability reasons as defaultFetch.ts's timeout (Bun-on-Windows unreliability). The timer
+    // is always cleared once the process exits so no dangling timer is left behind.
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
