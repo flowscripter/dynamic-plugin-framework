@@ -8,8 +8,8 @@ afterEach(() => {
 });
 
 // Simulates native fetch()'s real behaviour: the returned promise only settles once the
-// supplied AbortSignal fires, otherwise it hangs forever - exactly the pattern that causes the
-// indefinite hang this fix addresses.
+// supplied AbortSignal fires, otherwise it hangs forever - exactly the pattern the timeout in
+// defaultFetch() guards against.
 function mockHangingFetch() {
   return mock((_input: string | URL | Request, init?: RequestInit) => {
     return new Promise<Response>((_resolve, reject) => {
