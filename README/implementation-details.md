@@ -52,7 +52,16 @@ at compile time, so nothing is emitted to bundle in the first place), it can
 still be marked `--external` and `peerDependency` as a guardrail so a future
 accidental value import fails loudly instead of silently duplicating the
 host's runtime code into the bundle. Any package with a real value import
-must stay bundled.
+must stay bundled; the framework does not currently supply host modules to a
+fetched bundle.
+
+A bundle is loaded at runtime and is not imported as a package dependency, so
+it does not need type declarations. If the same package is also imported
+directly by tests or other code (for example, to use the exported types or
+classes of a plugin), also emit `.d.ts` files (for example `tsc` with
+`declaration: true` into `dist/`) and point the `types` field and the `types`
+condition of `exports` at them. A bundle-only package without declarations is
+imported as an untyped module in that case.
 
 **Host Application Authors**
 
