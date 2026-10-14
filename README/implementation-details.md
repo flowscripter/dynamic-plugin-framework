@@ -267,6 +267,37 @@ classDiagram
     HttpPluginManager --> DefaultPluginManager : delegates PluginManager methods
 ```
 
+## Registry API
+
+`DefaultPluginManager` tracks extension points and registered extensions via the `ExtensionPointRegistry` and `ExtensionRegistry` interfaces. In-memory implementations are used by default and alternatives can be supplied via the `DefaultPluginManager` constructor:
+
+```mermaid
+classDiagram
+    class ExtensionPointRegistry {
+        <<interface>>
+    }
+
+    class ExtensionRegistry {
+        <<interface>>
+    }
+
+    class InMemoryExtensionPointRegistry {
+    }
+
+    class InMemoryExtensionRegistry {
+    }
+
+    class DefaultPluginManager {
+        constructor(repos, extensionPointRegistry?, extensionRegistry?)
+    }
+
+    ExtensionPointRegistry <|.. InMemoryExtensionPointRegistry
+    ExtensionRegistry <|.. InMemoryExtensionRegistry
+    DefaultPluginManager --> ExtensionPointRegistry
+    DefaultPluginManager --> ExtensionRegistry
+    DefaultPluginManager --> "1..*" PluginRepository
+```
+
 ## Plugin Discovery and Instantiation Flow
 
 The following sequence diagram shows the flow for using `DefaultPluginManager` directly with a `UrlListPluginRepository`:
