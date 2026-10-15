@@ -1,6 +1,6 @@
 {
   "name": "@flowscripter/dynamic-plugin-framework",
-  "version": "2.2.22",
+  "version": "2.2.23",
   "description": "Dynamic plugin framework for Bun based on Javascript Modules and import() function",
   "keywords": [
     "bun",
@@ -50,11 +50,11 @@
     "semver": "^7.8.5"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.3",
     "@types/node": "^26.6.5",
     "@types/semver": "^7.8.0",
-    "oxfmt": "0.72.0",
-    "oxlint": "1.87.0"
+    "oxfmt": "0.73.0",
+    "oxlint": "1.88.0"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
