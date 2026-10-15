@@ -7,7 +7,6 @@ import type NpmjsPluginRepository from "./plugin_repository/NpmjsPluginRepositor
 import type NpmPluginRepository from "./plugin_repository/NpmPluginRepository.ts";
 import type PluginManager from "../api/plugin_manager/PluginManager.ts";
 import type VersionedPluginDescriptor from "../api/plugin_repository/VersionedPluginDescriptor.ts";
-import type VersionedPluginRepository from "../api/plugin_repository/VersionedPluginRepository.ts";
 import type SpawnCapable from "../api/spawn/SpawnCapable.ts";
 import type SpawnInterface from "../api/spawn/SpawnInterface.ts";
 
@@ -76,7 +75,8 @@ export default class NpmPluginManager
    * @param local repository used to load installed plugins, backed by `node_modules`.
    * @param options.installCommand optional install command (e.g. `"npm install"`). If not
    * specified, `"bun add"` is used if `bun` is on `PATH`, falling back to `"npm install"` if
-   * `npm` is on `PATH` instead. The command is resolved and its binary checked against `PATH`
+   * `npm` is on `PATH` instead. A `--registry=<url>` argument for the marketplace the plugin is
+   * installed from is always appended to the install command. The command is resolved and its binary checked against `PATH`
    * only when an install or uninstall is performed, so construction never fails because a
    * package manager is missing; {@link install} and {@link uninstall} reject instead.
    * @param options.pluginManager optional {@link PluginManager} to delegate to; see
@@ -213,7 +213,7 @@ export default class NpmPluginManager
   ): Promise<void> {
     // Fail before any remote lookup or filesystem changes if no package manager is available.
     this.getInstallCommand();
-    let source: VersionedPluginRepository | undefined;
+    let source: NpmjsPluginRepository | undefined;
     for (const remote of this.remotes) {
       for await (const d of remote.getPlugins()) {
         if (d.pluginId === descriptor.pluginId) {
@@ -236,7 +236,7 @@ export default class NpmPluginManager
 
   private async installOne(
     descriptor: Readonly<VersionedPluginDescriptor>,
-    source: VersionedPluginRepository,
+    source: NpmjsPluginRepository,
     target: NpmPluginRepository,
     includeDependencies: boolean,
   ): Promise<void> {
@@ -278,7 +278,13 @@ export default class NpmPluginManager
       descriptor.version && descriptor.version !== "latest"
         ? `${descriptor.pluginId}@${descriptor.version}`
         : descriptor.pluginId;
-    const cmdParts = [...this.getInstallCommand().split(" "), installArg];
+    // Pin the install to the registry of the marketplace the plugin was resolved from, so the
+    // package manager cannot fall back to a different registry from ambient configuration.
+    const cmdParts = [
+      ...this.getInstallCommand().split(" "),
+      installArg,
+      `--registry=${source.url}`,
+    ];
     await this.runCommand(cmdParts, cwd);
     await this.validatePluginBundled(descriptor.pluginId, target.nodeModulesPath, cwd);
   }

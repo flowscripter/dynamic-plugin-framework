@@ -34,7 +34,10 @@ function makeDescriptor(
 class MockRemote {
   public readonly receivedVersions: Array<string | undefined> = [];
 
-  constructor(public readonly descriptors: VersionedPluginDescriptor[]) {}
+  constructor(
+    public readonly descriptors: VersionedPluginDescriptor[],
+    public readonly url: string = "https://registry.example.com",
+  ) {}
 
   async *search(_query: SearchQuery): AsyncIterable<Readonly<VersionedPluginDescriptor>> {
     yield* this.descriptors;
@@ -184,6 +187,61 @@ describe("NpmPluginManager", () => {
 
       expect(calls[0].command).toContain("plugin-a");
       expect(calls[0].command).not.toContain("plugin-a@latest");
+    });
+  });
+
+  describe("install() registry binding", () => {
+    it("passes the registry of the remote the plugin was found in", async () => {
+      const first = new MockRemote([makeDescriptor("other")], "https://first.example.com");
+      const second = new MockRemote([makeDescriptor("plugin-a")], "https://second.example.com");
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager(
+        [first, second] as unknown as NpmjsPluginRepository[],
+        repo,
+      );
+      const calls: Array<ReadonlyArray<string>> = [];
+      manager.setSpawn({
+        spawn: (command) => {
+          calls.push(command);
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      });
+
+      await manager.install(makeDescriptor("plugin-a"));
+
+      expect(calls[0]).toContain("--registry=https://second.example.com");
+      expect(calls[0]).not.toContain("--registry=https://first.example.com");
+    });
+
+    it("passes the source registry when installing dependencies", async () => {
+      const dep = makeDescriptor("dep-a");
+      const plugin: VersionedPluginDescriptor = {
+        ...makeDescriptor("plugin-a"),
+        dependencies: [{ scope: undefined, name: "dep-a", versionRange: "^1.0.0" }],
+      };
+      const remote = new MockRemote([plugin, dep], "https://only.example.com");
+      const repo = new NpmPluginRepository({
+        nodeModulesPath: nodeModulesDir,
+        packageJsonNamespace: NAMESPACE,
+      });
+      const manager = new NpmPluginManager([remote] as unknown as NpmjsPluginRepository[], repo);
+      const calls: Array<ReadonlyArray<string>> = [];
+      manager.setSpawn({
+        spawn: (command) => {
+          calls.push(command);
+          return Promise.resolve({ ok: true, exitCode: 0 });
+        },
+      });
+
+      await manager.install(plugin, { includeDependencies: true });
+
+      expect(calls.length).toBe(2);
+      for (const call of calls) {
+        expect(call).toContain("--registry=https://only.example.com");
+      }
     });
   });
 
@@ -529,7 +587,12 @@ describe("NpmPluginManager", () => {
 
       await manager.install(makeDescriptor("plugin-a"));
 
-      expect(calls[0]).toEqual(["bun", "add", "plugin-a@1.0.0"]);
+      expect(calls[0]).toEqual([
+        "bun",
+        "add",
+        "plugin-a@1.0.0",
+        "--registry=https://registry.example.com",
+      ]);
     });
 
     it("falls back to 'npm install' when bun is not on PATH but npm is", async () => {
@@ -540,7 +603,12 @@ describe("NpmPluginManager", () => {
 
       await manager.install(makeDescriptor("plugin-a"));
 
-      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
+      expect(calls[0]).toEqual([
+        "npm",
+        "install",
+        "plugin-a@1.0.0",
+        "--registry=https://registry.example.com",
+      ]);
     });
 
     it("constructs without error when neither bun nor npm is on PATH", () => {
@@ -579,7 +647,12 @@ describe("NpmPluginManager", () => {
       which.mockImplementation((binary: string) => (binary === "npm" ? "/usr/bin/npm" : null));
       await manager.install(makeDescriptor("plugin-a"));
 
-      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
+      expect(calls[0]).toEqual([
+        "npm",
+        "install",
+        "plugin-a@1.0.0",
+        "--registry=https://registry.example.com",
+      ]);
     });
 
     it("uses an explicit installCommand even when its binary would not be the auto-detected default", async () => {
@@ -588,7 +661,12 @@ describe("NpmPluginManager", () => {
 
       await manager.install(makeDescriptor("plugin-a"));
 
-      expect(calls[0]).toEqual(["npm", "install", "plugin-a@1.0.0"]);
+      expect(calls[0]).toEqual([
+        "npm",
+        "install",
+        "plugin-a@1.0.0",
+        "--registry=https://registry.example.com",
+      ]);
     });
 
     it("rejects install() when an explicit installCommand's binary is not on PATH", async () => {
