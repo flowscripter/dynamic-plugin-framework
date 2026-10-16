@@ -1,8 +1,12 @@
+import { builtinModules } from "node:module";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type Plugin from "../../api/plugin/Plugin.ts";
 import type FetchInterface from "../../api/fetch/FetchInterface.ts";
+import { isBunRuntime } from "../../shared/Runtime.ts";
+import semver from "semver";
+import { getSharedModule, isSharedModuleRegistered } from "../../shared/SharedModules.ts";
 
 /**
  * Result of a {@link loadPlugin} invocation.
@@ -50,13 +54,82 @@ async function getLocalUrl(
   return localPluginPath;
 }
 
+function isRemoteUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return lower.startsWith("http://") || lower.startsWith("https://");
+}
+
+const BUILTIN_SPECIFIERS = new Set(builtinModules);
+
+function isBareSpecifier(specifier: string): boolean {
+  if (specifier.startsWith(".") || specifier.startsWith("/") || specifier.includes(":")) {
+    return false;
+  }
+  return specifier !== "bun" && !BUILTIN_SPECIFIERS.has(specifier);
+}
+
+/**
+ * @returns the first bare import in the source which is neither a builtin nor registered as a shared module.
+ * @throws if the source cannot be scanned.
+ */
+function findUnprovidedImport(source: string): string | undefined {
+  const imports = new Bun.Transpiler({ loader: "js" }).scanImports(source);
+  for (const { path: specifier, kind } of imports) {
+    if (kind !== "internal" && isBareSpecifier(specifier) && !isSharedModuleRegistered(specifier)) {
+      return specifier;
+    }
+  }
+  return undefined;
+}
+
+function checkSharedModules(url: string, plugin: Plugin): Error | undefined {
+  const sharedModules = plugin.sharedModules;
+  if (sharedModules === undefined) {
+    return undefined;
+  }
+  for (const [specifier, range] of Object.entries(sharedModules)) {
+    const shared = getSharedModule(specifier);
+    if (shared === undefined) {
+      return new Error(
+        `Plugin from ${url} requires shared module '${specifier}' which is not provided by the host`,
+      );
+    }
+    if (semver.validRange(range) === null) {
+      return new Error(
+        `Plugin from ${url} declares invalid version range '${range}' for shared module '${specifier}'`,
+      );
+    }
+    if (shared.version === undefined) {
+      console.warn(
+        `Host provides shared module '${specifier}' without a version; cannot check range '${range}' required by plugin from ${url}`,
+      );
+      continue;
+    }
+    if (!semver.satisfies(shared.version, range, { includePrerelease: true })) {
+      return new Error(
+        `Plugin from ${url} requires '${specifier}' ${range} but host provides ${shared.version}`,
+      );
+    }
+  }
+  return undefined;
+}
+
 /**
  * Utility function to import a specified module and validate it is a {@link Plugin} implementation.
  *
- * If the URL specified is not local filesystem (e.g. http(s)://) and the dynamic import fails with ENOENT
- * then the remote item will be fetched and the contents of the response will be used as the module source
- * i.e. a local dynamic import will be attempted.  This is because the Bun runtime does not support importing
+ * If the URL specified is http(s):// the remote item is fetched into the cache folder and the cached file is
+ * imported i.e. a local dynamic import is performed. This is because the Bun runtime does not support importing
  * remote modules directly as per https://github.com/oven-sh/bun/issues/38
+ *
+ * Before a fetched file is imported its imports are scanned. If it has a bare import which is neither a
+ * builtin nor registered via `registerSharedModules` the plugin is rejected, so that the runtime never attempts
+ * to resolve (or auto-install) the package itself.
+ *
+ * If the loaded {@link Plugin} declares {@link Plugin.sharedModules} each entry is checked against the modules
+ * the host has registered.
+ *
+ * Under a runtime without `Bun` (e.g. a browser) the URL is imported directly and no scanning is performed;
+ * shared modules are expected to be supplied by an import map.
  *
  * @param url the URL of the module to import.
  */
@@ -75,24 +148,29 @@ export default async function loadPlugin(
   let module;
 
   try {
-    module = await import(url);
-  } catch (err) {
-    if (
-      (err as { message: string }).message === undefined ||
-      !(err as { message: string }).message.startsWith("ENOENT") ||
-      (!url.toLowerCase().startsWith("http://") && !url.toLowerCase().startsWith("https://"))
-    ) {
-      result.error = err as Error;
-      return result;
-    }
-    const localUrl = await getLocalUrl(url, cacheFolder, repoName, fetchFn);
-
-    try {
+    if (!isBunRuntime()) {
+      module = await import(url);
+    } else if (isRemoteUrl(url)) {
+      const localUrl = await getLocalUrl(url, cacheFolder, repoName, fetchFn);
+      const unprovided = findUnprovidedImport(await Bun.file(localUrl).text());
+      if (unprovided !== undefined) {
+        result.error = new Error(
+          `Plugin from ${url} imports '${unprovided}' which is not provided by the host (register it with registerSharedModules)`,
+        );
+        return result;
+      }
       module = await import(localUrl);
-    } catch (err2) {
-      result.error = err2 as Error;
-      return result;
+    } else {
+      module = await import(url);
     }
+  } catch (err) {
+    result.error = err as Error;
+    if (!isBunRuntime() && err instanceof TypeError) {
+      result.error = new Error(`${err.message} (add the module to the import map of the host)`, {
+        cause: err,
+      });
+    }
+    return result;
   }
 
   const potentialPlugin = module.default;
@@ -131,6 +209,13 @@ export default async function loadPlugin(
       );
       return result;
     }
+  }
+
+  const sharedModulesError = checkSharedModules(url, potentialPlugin);
+  if (sharedModulesError !== undefined) {
+    result.isValidPlugin = false;
+    result.error = sharedModulesError;
+    return result;
   }
 
   result.plugin = potentialPlugin;

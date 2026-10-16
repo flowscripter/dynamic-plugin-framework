@@ -17,6 +17,7 @@ discovered and imported into a running process.
 #### Key Features
 
 - Plugins published as bundled JS files or npm packages.
+- Host-supplied shared modules for fetched plugin bundles (single copy of a package across the plugin boundary)
 - Plugin versioning with scope, name, semver version and dependency declarations
 - Searchable marketplace repositories backed by npmjs.com (or compatible registries) or a static HTTP manifest
 - Local plugin repositories backed by a `node_modules` folder or a local install folder
