@@ -34,3 +34,5 @@ export type { default as MarketplacePluginManager } from "./src/api/plugin_manag
 export { default as BaseMarketplacePluginManager } from "./src/plugin_manager/BaseMarketplacePluginManager.ts";
 export { default as NpmPluginManager } from "./src/plugin_manager/NpmPluginManager.ts";
 export { default as HttpPluginManager } from "./src/plugin_manager/HttpPluginManager.ts";
+export { registerSharedModules, describeSharedModules } from "./src/shared/SharedModules.ts";
+export type { SharedModule } from "./src/shared/SharedModules.ts";
