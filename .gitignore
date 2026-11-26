@@ -175,4 +175,6 @@ dist
 .DS_Store
 docs/
 /.releaserc
-.claude
+.claude/*
+!.claude/CLAUDE.md
+!.claude/skills/
