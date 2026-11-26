@@ -45,6 +45,11 @@ terminal and a browser:
 - [Development](./README/development.md)
 - [API Documentation](https://flowscripter.github.io/dynamic-plugin-framework/index.html)
 
+## Design Records
+
+- [Architecture decision records](design/adr/) for decisions specific to this repo
+- [Change specs and plans](design/changes/) from the agentic development workflow
+
 ## License
 
 MIT © Flowscripter
